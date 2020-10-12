@@ -1,0 +1,249 @@
+---
+title: 'Econ 725: Problem set 1'
+author: "Alston D'Souza"
+date: "9/3/2020"
+output:
+  pdf_document: default
+   
+---
+
+
+# Initializing the Setup
+
+First we set the working directory, load libraries, and import the dataset. Data will be downloaded from <https://www.transtats.bts.gov/DL_SelectFields.asp>.
+
+```{r libs, eval = F}
+# Set working directories
+setwd("~/Documents/University of Wisconsin Madison/0. Coursework/3. Fall 2020/725 -  
+      machine learning/problem sets/1/code and results")
+
+# Load libraries
+library(tidyverse)
+library(dplyr)
+
+# Import dataset
+df1 <- read.csv("~/Documents/University of Wisconsin Madison/0. Coursework/3. Fall 2020/
+                725 - machine learning/problem sets/1/data/75118994_T_DB1B_MARKET.csv")
+
+# Display dataset
+knitr::kable(head(df1[,3:10]))
+
+```
+
+
+```{r libs1, echo = F, results='asis', message=F}
+# Set working directories
+setwd("~/Documents/University of Wisconsin Madison/0. Coursework/3. Fall 2020/725 - machine learning/problem sets/1/code and results")
+
+# Load libraries
+library(tidyverse)
+library(dplyr)
+
+
+# Import dataset
+df1 <- read.csv("~/Documents/University of Wisconsin Madison/0. Coursework/3. Fall 2020/725 - machine learning/problem sets/1/data/75118994_T_DB1B_MARKET.csv")
+
+# Display dataset
+knitr::kable(head(df1[,3:10]))
+
+```
+
+
+***
+\newpage
+# Data processing
+
+Remove if the following conditions are met:  
+1. If cant be assigned to a unique carrier  
+2. If passengers are less than 20  
+3. Outlier prices  
+
+```{r initial processing, message=F}
+
+# Negating the '%in%' function
+`%notin%` <- Negate(`%in%`) 
+
+# See the extent of outliers
+boxplot(df1$MARKET_FARE)
+
+# Manipulating the data set using tidyverse
+df2 <- df1 %>% 
+  
+  # Removing 'X' variable 
+  select(-X) %>%
+  
+  # Removing observations that can't be assigned to a unique carrier
+  filter(TICKET_CARRIER %notin% c("99", "--")) %>% 
+  
+  # Removing observations with < 20 passengers 
+  filter(PASSENGERS >= 20) %>%
+  
+  # Removing extreme values of ticket prices
+  filter(MARKET_FARE < 50000) %>%
+
+# 2a) Remove observations with ticket carrier change
+  filter(TK_CARRIER_CHANGE == 0)
+
+# Display the processed dataset
+knitr::kable(head(df2))
+
+```
+
+Because this dataset is a 10 percent random sample of airline tickets:  
+1.  Multiply the passengers number by 10 for each ticket.   
+2.  Calculate the total number of passengers in each market and   
+3.  Remove tickets that belong to a market with less than 20 passengers per day, on average.   
+
+```{r qn2, message = F}
+df3 <- df2 %>% 
+  
+  # Multiplying passenger numbers by 10 for each ticket
+  mutate(PASSENGERS_10 = 10*PASSENGERS) %>%
+  
+  # Calculating the total number of passengers in each market
+  mutate(NEW_MKT_ID = paste0(ORIGIN_AIRPORT_ID, DEST_AIRPORT_ID)) %>%
+  select(NEW_MKT_ID, PASSENGERS_10) %>%
+  group_by(NEW_MKT_ID) %>%
+  mutate(QUARTERLY_PASSENGERS = sum(PASSENGERS_10)) %>%
+  
+  # Calculating the average number of daily passengers
+  mutate(DAILY_AVG = (QUARTERLY_PASSENGERS/91.25)) %>%
+  
+  # Filtering markets with less than 20 passengers per day on average
+  filter(DAILY_AVG >= 20) %>%
+  
+  # Keeping only the NEW_MKT_IDs which fulfill the above criteria
+  select(NEW_MKT_ID)
+
+df3 <- as.data.frame(df3)
+
+# Display the processed dataset
+knitr::kable(head(df3))
+
+```
+
+
+**df3** contains the list of markets that has less than 20 passengers per day on average
+
+```{r q2_1}
+#Combining this list of NEW_MKT_IDs that fulfill the above criteria with the 
+#ticket-level database in df3. This automatically retains only the tickets where 
+#the criteria for NEW_MKT_IDs is fulfilled.
+
+df2$NEW_MKT_ID <- paste0(df2$ORIGIN_AIRPORT_ID, df2$DEST_AIRPORT_ID)
+df4 <- merge(df2, df3, by = "NEW_MKT_ID")
+
+# df4 has the tickets for which the 2, 2a, 2b criteria is fulfilled
+knitr::kable(head(df4)[,-c(2,3)])
+```
+
+Remove tickets with prices less than $25 or more than $2,500
+```{r q2_c, messages = F, echo = T}
+df5 <- df4 %>% 
+  filter(MARKET_FARE >= 25 & MARKET_FARE <= 2500)
+
+# Display the processed dataset
+knitr::kable(head(df5)[,-c(2,3)])
+
+``` 
+
+ Create two datasets: one at the market-carrier level and another at the market level.  
+ 3a) For each market-airline,  
+      1. Calculate the average price.  
+      2. Calculate the total number of passengers.   
+      3. Calculate the average distance.  
+
+```{r q3, messages = F}
+
+df6 <- df5 %>%
+  select(NEW_MKT_ID, TICKET_CARRIER, MARKET_FARE, PASSENGERS, MARKET_DISTANCE) %>%
+  group_by(NEW_MKT_ID, TICKET_CARRIER) %>%
+  mutate(AVG_PRICE = mean(MARKET_FARE), 
+            TOTAL_PASSENGERS = sum(PASSENGERS),
+            AVG_DISTANCE = mean(MARKET_DISTANCE)) 
+df6 <- as.data.frame(df6)
+              
+knitr::kable(head(df6))
+```
+
+ 3b) For each market,  
+      1. Calculate the average price.  
+      2. Calculate the average distance.   
+      3. Calculate the total number of firms.
+      4. Calculate the HHI, defined as the sum of squared market squares. E.g., if a market has two firms, each with 50% market share, the HHI is 502 + 502 or 5,000).
+      
+         
+```{r q4, messages = F}
+df7 <- df5 %>%
+  select(NEW_MKT_ID, MARKET_FARE, MARKET_DISTANCE, TICKET_CARRIER) %>%
+  group_by(NEW_MKT_ID) %>%
+  mutate(AVG_PRICE = mean(MARKET_FARE),
+            AVG_DISTANCE = mean(MARKET_DISTANCE),
+            NUMBER_FIRMS = NROW(TICKET_CARRIER)) %>%
+  mutate(MKT_SHARE = 100/NUMBER_FIRMS) %>%
+  mutate(HHI = NUMBER_FIRMS*(MKT_SHARE^2))
+df7 <- as.data.frame(df7)
+knitr::kable(head(df7))
+```
+
+Downloading the “populations.R” dataset, which contains the market size for each market, and merging this with the market-level dataset.
+
+```{r q4_v1, messages = F, eval = F}
+
+# Loading the populations dataset
+load("~/Documents/University of Wisconsin Madison/0. Coursework/3. Fall 2020/725 - 
+     machine learning/problem sets/1/supplementary files/populations.R")
+
+# Recreating NEW_MKT_ID in the populations dataset
+pop1 <- populations %>%
+  mutate(NEW_MKT_ID = paste0(origin_airport_id, dest_airport_id)) %>%
+  select(NEW_MKT_ID, market_size)
+
+df8 <- merge(df7, pop1)
+knitr::kable(head(df8))
+```
+
+```{r q4_v, messages = F, echo = F}
+
+# Loading the populations dataset
+load("~/Documents/University of Wisconsin Madison/0. Coursework/3. Fall 2020/725 - machine learning/problem sets/1/supplementary files/populations.R")
+
+# Recreating NEW_MKT_ID in the populations dataset
+pop1 <- populations %>%
+  mutate(NEW_MKT_ID = paste0(origin_airport_id, dest_airport_id)) %>%
+  select(NEW_MKT_ID, market_size)
+
+df8 <- merge(df7, pop1)
+knitr::kable(head(df8))
+```
+
+\newpage
+# Data Visualization
+
+4) Generate tables with summary statistics for each of your datasets and generate plots characterizing the distributions of market level prices and HHI as well as the relationship between them.
+    a) Report summary statistics for your tables (hint: use the kable function in the knitr package).
+    b) Using ggplot, generate a scatter plot of HHI versus prices at the market level. Also, using
+    ggplot, generate density plots of market level prices and HHI. Be sure to label each of your three plots.
+
+
+```{r q4a, message=F}
+# Generating summary tables for each of the datasets
+summary(df6)
+summary(df7)
+summary(df8)
+
+hist(df7$AVG_PRICE, main = "Histogram of Average Prices in the Market", xlab = "Average Prices in the Market")
+
+hist(df7$HHI, main = "Histogram of HHI", xlab = "HHI")
+
+ggplot(df7) + 
+  geom_point(aes(y = HHI, x = AVG_PRICE)) + 
+  geom_smooth(aes(y = HHI, x = AVG_PRICE))
+
+
+```
+
+
+
+
+
