@@ -7,18 +7,35 @@
 # 3. Please comment on the code as clearly as possible
 # --------------------------
 
-library("foreign")
+library("haven")
 
 # Importing the dataset
-df1 <- read.dta("./112439-V1/ebaydatafinal.dta", convert.dates = T)
+# df1 <- read_dta("./112439-V1/temp.dta")
+data <- data.frame(df1)
 
-dim(df1)
+dim(data)
 # We have 146734 rows and 548 variables
 
-View(df1)
+View(data)
+str(data)
 
-str(df1)
-# Things to do 
+# Creating a data set with only raw variables
+df2 <- data[ ,c("ding_good", "ding_bad", "ding_knowledge", "ding_negation", "ding_low", "ding_high", "ding_pics", 
+                 "dent_good", "dent_bad", "dent_knowledge", "dent_negation", "dent_low", "dent_high",  "rust_high",
+                 "dent_pics", "crack_good", "crack_bad", "crack_knowledge", "crack_negation", "crack_low", "crack_high",
+                 "crack_pics", "problem_good", "problem_bad", "problem_knowledge", "problem_negation", "problem_low",
+                 "problem_high","problem_pics", "rust_good", "rust_bad", "rust_knowledge", "rust_negation", "rust_low",
+                 "rust_pics", "scratch_good", "scratch_bad", "scratch_knowledge", "scratch_negation", "scratch_low",
+                 "scratch_high", "scratch_pics", "broken_good", "broken_bad", "broken_knowledge", "broken_negation",
+                 "broken_low", "broken_high", "broken_pics", "ding_group", "scratch_group", "crack_group", "broken_group",
+                 "dent_group", "problem_group", "rust_group")]
+df2 <- data[, c("membersince")]
+df2
+
+# Things to do
+
+
+
 # -------
 # 1) Start working with the author's temp file (after a bit of modification to the code).
 #     this solves the problem of creating dummy variables -- AD
