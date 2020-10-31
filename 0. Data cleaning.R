@@ -10,11 +10,57 @@
 library("haven")
 
 # Importing the dataset
-# df1 <- read_stata("./112439-V1/temp.dta")
+df1 <- read_stata("temp.dta")
 orig_data <- data.frame(df1)
 
 dim(orig_data)
 # We have 146734 rows and 605 variables. 
+
+
+# Pengjin's part: Remove obviously unnecessary columns
+orig_data = orig_data[ , -which(colnames(orig_data) %in% c("membersince","name","vin","highbiddername",
+              "sellername","questions","X_merge","temp","biddername1","biddername2",
+              "biddername3", "biddername4", "biddername5","biddername6","biddername7",
+              "biddername8","biddername9","biddername10","biddername11","biddername12",
+              "biddername13","biddername14","biddername15","biddername16","biddername17",
+              "biddername18","biddername19","biddername20","biddername21","biddername22"))]
+
+#Finally, I removed 30 variables.
+
+# --------------------
+# JL's part: date and time
+## generally, two types of datetime vars here: standard and numeric
+## turn standard to time var:
+
+orig_data$enddate = strptime(orig_data$enddate, "%b-%d-%y %H:%M:%S")
+orig_data$startdate = strptime(orig_data$startdate, 
+                               "%b-%d-%y %H:%M:%S")
+### auction last in mins
+orig_data$auc_mins = as.numeric(difftime(orig_data$enddate,
+                                         orig_data$startdate,
+                                         units="mins"))
+
+### The var "length" is auction lasts in days does the same thing
+
+
+### note that any var that link "bid" and "1" (eg. logbid1) relates to
+### the highest bid
+
+## deal with nemeric time var:
+### to calculate how long it takes for the highest bidder to make 
+### decision (in days)
+
+orig_data$maxbidtime = orig_data$biddate1 - orig_data$startingdate
+
+### I think bidhour, bidminute, bidsec, etc should not be necessary
+### the best way to handle time is to calculate duration
+### i.e. time difference
+### it doesn't make sense to include a numeric value i.e. bidhour
+
+
+# end of JL's part
+# --------------------
+
 
 # -------------------------------------------------------------------------
 # This original dataset is a mixture of 'raw variables' and 'variables derived by the author'.
@@ -99,7 +145,7 @@ dataset("raw")
 # -------
 # 1) Start working with the author's temp file (after a bit of modification to the code).
 #     this solves the problem of creating dummy variables -- AD [done]
-# 2) Remove obviously unnecessary columns such as bidders name -- PW
+# 2) Remove obviously unnecessary columns such as bidders name -- PW [done]
 # 3) change the time and date variables to make them suitable for a regression. -- JL
 # 4) Remove completely empty columns -- SB
 # 5) Ensure variable types is correct. -- YW
