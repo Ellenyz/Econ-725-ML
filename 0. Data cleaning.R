@@ -11,14 +11,16 @@
 library("haven")
 
 # Importing the dataset
-df1 <- read_stata("temp.dta")
-orig_data <- data.frame(df1)
+# --------------------------------------------------------------
+df1 <- read_dta("./112439-V1/temp for project.dta")
+# orig_data <- data.frame(df1)
 
 dim(orig_data)
 # We have 146734 rows and 605 variables. 
 
 
-# Pengjin's part: Remove obviously unnecessary columns
+# Remove obviously unnecessary columns for easier handling of data
+# --------------------------------------------------------------
 orig_data = orig_data[ , -which(colnames(orig_data) %in% c("membersince","name","vin","highbiddername",
               "sellername","questions","X_merge","temp","biddername1","biddername2",
               "biddername3", "biddername4", "biddername5","biddername6","biddername7",
@@ -26,13 +28,14 @@ orig_data = orig_data[ , -which(colnames(orig_data) %in% c("membersince","name",
               "biddername13","biddername14","biddername15","biddername16","biddername17",
               "biddername18","biddername19","biddername20","biddername21","biddername22"))]
 
-#Finally, I removed 30 variables.
+dim(orig_data)
+# We have 146734 rows and 575 variables (removed 30 columns)
 
-# --------------------
-# JL's part: date and time
-## generally, two types of datetime vars here: standard and numeric
+# Fixing date and time
+# --------------------------------------------------------------
+# Generally, two types of datetime vars: standard and numeric
 ## turn standard to time var:
-
+# <Need a little more detail on what is the problem, and what needs to be fixed, and what is being fixed>>.
 orig_data$enddate = strptime(orig_data$enddate, "%b-%d-%y %H:%M:%S")
 orig_data$startdate = strptime(orig_data$startdate, 
                                "%b-%d-%y %H:%M:%S")
@@ -58,9 +61,6 @@ orig_data$maxbidtime = orig_data$biddate1 - orig_data$startingdate
 ### i.e. time difference
 ### it doesn't make sense to include a numeric value i.e. bidhour
 
-
-# end of JL's part
-# --------------------
 
 
 # -------------------------------------------------------------------------
@@ -139,11 +139,4 @@ dataset <- function(type){
 # Creating a data set with all the vars
 dataset("raw")
 
-
-=======
-library(haven)
-
-# Importing the dataset
-df1 <- read_dta("./112439-V1/temp.dta")
-View(df1)
 
