@@ -7,6 +7,7 @@
 # 3. Please comment on the code as clearly as possible
 # --------------------------
 
+
 library("haven")
 
 # Importing the dataset
@@ -139,19 +140,10 @@ dataset <- function(type){
 dataset("raw")
 
 
+=======
+library(haven)
 
+# Importing the dataset
+df1 <- read_dta("./112439-V1/temp.dta")
+View(df1)
 
-
-# -------
-# 1) Start working with the author's temp file (after a bit of modification to the code).
-#     this solves the problem of creating dummy variables -- AD [done]
-# 2) Remove obviously unnecessary columns such as bidders name -- PW [done]
-# 3) change the time and date variables to make them suitable for a regression. -- JL
-# 4) Remove completely empty columns -- SB
-# 5) Ensure variable types is correct. -- YW
-# 5) 
-
-
-
-
-?read.dta
