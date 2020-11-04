@@ -33,34 +33,44 @@ dim(orig_data)
 
 # Fixing date and time
 # --------------------------------------------------------------
-# Generally, two types of datetime vars: standard and numeric
-## turn standard to time var:
-# <Need a little more detail on what is the problem, and what needs to be fixed, and what is being fixed>>.
-orig_data$enddate = strptime(orig_data$enddate, "%b-%d-%y %H:%M:%S")
-orig_data$startdate = strptime(orig_data$startdate, 
-                               "%b-%d-%y %H:%M:%S")
-### auction last in mins
-orig_data$auc_mins = as.numeric(difftime(orig_data$enddate,
-                                         orig_data$startdate,
-                                         units="mins"))
+# 1. Use the "enddate", "startdate" to calculate month indicator (1,...,12)
 
-### The var "length" is auction lasts in days does the same thing
+orig_data$start_m = match(substr(orig_data$startdate, 1, 3), month.abb)
+orig_data$end_m = match(substr(orig_data$enddate, 1, 3), month.abb)
 
+# 2. Use month indicator to calculate season
 
-### note that any var that link "bid" and "1" (eg. logbid1) relates to
-### the highest bid
+attach(orig_data)
+orig_data$start_s <- ifelse(start_m==12 | start_m==1 | start_m==2, "Winter", 
+                            ifelse(start_m==3 | start_m==4 | start_m==5, "Spring", 
+                                   ifelse(start_m==6 | start_m==7 | start_m==8, "Summer",
+                                          ifelse(start_m==9 | start_m==10 | start_m==11, "Fall", 
+                                                 NA))))
 
-## deal with nemeric time var:
-### to calculate how long it takes for the highest bidder to make 
-### decision (in days)
+orig_data$end_s <- ifelse(end_m==12 | end_m==1 | end_m==2, "Winter", 
+                            ifelse(end_m==3 | end_m==4 | end_m==5, "Spring", 
+                                   ifelse(end_m==6 | end_m==7 | end_m==8, "Summer",
+                                          ifelse(end_m==9 | end_m==10 | end_m==11, "Fall", 
+                                                 NA))))
 
-orig_data$maxbidtime = orig_data$biddate1 - orig_data$startingdate
+# 2a. Create dummy indicating if auction happened in car-demand peak season
+orig_data$peak_s = ifelse(orig_data$start_s=="Spring" | orig_data$start_s=="Fall",
+                          1, 0)
 
-### I think bidhour, bidminute, bidsec, etc should not be necessary
-### the best way to handle time is to calculate duration
-### i.e. time difference
-### it doesn't make sense to include a numeric value i.e. bidhour
+# 2b. Create dummy indicating if start and end season are different
+orig_data$season_trans = ifelse(orig_data$start_s!=orig_data$end_s,
+                                1, 0)
 
+# 3. Var "length" is auction lasts in days, all set
+# 4. Var "endday" is weekday indicator (1,...,7), all set
+# 5. Var "endhour" is which the hour (24hr-clock) the auction ends, all set
+# 6. Var "endsunday" is a dummy pointing if endday is Sunday, all set
+
+# 7. Among "biddate1" "bidhour1" "bidminute1" "bidsecond1":
+## 7a. Calculate how long it took for the highest bid to appear
+orig_data$max_evot = orig_data$biddate1 - orig_data$startingdate
+
+# 7Note: All others from "biddate2" to "bidsecond22"...are no longer useful here 
 
 
 # -------------------------------------------------------------------------
