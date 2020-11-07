@@ -5,15 +5,86 @@
 # 1. Please navigate to the 'datacleaning' branch when making changes to this file. 
 # 2. Please commit every small change and give a clear description of the change in the commit message
 # 3. Please comment on the code as clearly as possible
-# ------
-library(haven)
-rm(list=ls())
+# --------------------------
+
+library("haven")
+
+#setwd('C:/Users/Sachin/Desktop/my_725_project_work')
 # Importing the dataset
-df1 <- read_stata('temp.dta')
+df1 <- read_stata("temp.dta")
 orig_data <- data.frame(df1)
 
 dim(orig_data)
 # We have 146734 rows and 605 variables. 
+
+
+# Pengjin's part: Remove obviously unnecessary columns
+orig_data = orig_data[ , -which(colnames(orig_data) %in% c("membersince","name","vin","highbiddername",
+                                                           "sellername","questions","X_merge","temp","biddername1","biddername2",
+                                                           "biddername3", "biddername4", "biddername5","biddername6","biddername7",
+                                                           "biddername8","biddername9","biddername10","biddername11","biddername12",
+                                                           "biddername13","biddername14","biddername15","biddername16","biddername17",
+                                                           "biddername18","biddername19","biddername20","biddername21","biddername22"))]
+
+#Finally, I removed 30 variables.
+
+# --------------------
+# JL's part: date and time
+## generally, two types of datetime vars here: standard and numeric
+## turn standard to time var:
+
+orig_data$enddate = strptime(orig_data$enddate, "%b-%d-%y %H:%M:%S")
+orig_data$startdate = strptime(orig_data$startdate, 
+                               "%b-%d-%y %H:%M:%S")
+### auction last in mins
+orig_data$auc_mins = as.numeric(difftime(orig_data$enddate,
+                                         orig_data$startdate,
+                                         units="mins"))
+
+### The var "length" is auction lasts in days does the same thing
+
+
+### note that any var that link "bid" and "1" (eg. logbid1) relates to
+### the highest bid
+
+## deal with nemeric time var:
+### to calculate how long it takes for the highest bidder to make 
+### decision (in days)
+
+orig_data$maxbidtime = orig_data$biddate1 - orig_data$startingdate
+
+### I think bidhour, bidminute, bidsec, etc should not be necessary
+### the best way to handle time is to calculate duration
+### i.e. time difference
+### it doesn't make sense to include a numeric value i.e. bidhour
+
+
+# end of JL's part
+# --------------------
+
+# ------------------------------------------------------------------
+# Sachin's part
+# I have checked the "orig_data" data file and there are no completely empty columns in it.
+# But, I found some columns that have a lot of NA values. 
+# I have creat the "data_na" dataset that contain NA values columns. Check the following dataset.
+# biddername15, biddy15, biddername16, biddy16, biddername17, biddy17, biddername18, biddy18, biddername19, biddy19, biddername20, biddy20, biddername21, biddy21, biddername22, biddy22, biddate15, bidhour15, bidminute15, bidsecond15, biddate16, bidhour16, bidminute16, bidsecond16, biddate17, bidhour17, bidminute17, bidsecond17, biddate18, bidhour18, bidminute18, bidsecond18, biddate19, bidhour19, bidminute19, bidsecond19, biddate20, bidhour20, bidminute20, bidsecond20, biddate21, bidhour21, bidminute21, bidsecond21, biddate22, bidhour22, bidminute22, bidsecond22
+
+data_na <- subset(orig_data, select=c(biddy15, biddy16, biddy17, biddy18, biddy19, biddy20, 
+                                      biddy21, biddy22, biddate15, bidhour15, bidminute15, bidsecond15, biddate16, bidhour16, bidminute16, bidsecond16, 
+                                      biddate17, bidhour17, bidminute17, bidsecond17, biddate18, bidhour18, bidminute18, bidsecond18, biddate19, bidhour19, bidminute19, bidsecond19, 
+                                      biddate20, bidhour20, bidminute20, bidsecond20, biddate21, bidhour21, bidminute21, bidsecond21, biddate22, bidhour22, bidminute22, bidsecond22))
+
+
+# Count the nubmer of NA.
+data_na$na_count <- apply(is.na(data_na), 1, sum)
+
+# Do we need to remove these columns?
+
+# Remove all NA values from the data.
+#data_na <- na.omit(data_na)
+
+# End sachin's part
+# -------------------------------------------------------------------------
 
 # -------------------------------------------------------------------------
 # This original dataset is a mixture of 'raw variables' and 'variables derived by the author'.
@@ -89,7 +160,7 @@ dataset <- function(type){
 
 
 # Creating a data set with all the vars
-#dataset("raw")
+dataset("raw")
 
 
 
@@ -98,11 +169,16 @@ dataset <- function(type){
 # -------
 # 1) Start working with the author's temp file (after a bit of modification to the code).
 #     this solves the problem of creating dummy variables -- AD [done]
-# 2) Remove obviously unnecessary columns such as bidders name -- PW
+# 2) Remove obviously unnecessary columns such as bidders name -- PW [done]
 # 3) change the time and date variables to make them suitable for a regression. -- JL
 # 4) Remove completely empty columns -- SB
 # 5) Ensure variable types is correct. -- YW
 # 5) 
+
+
+
+
+?read.dta
 
 
 # -------------Yuzhou's Part-----------------
@@ -110,7 +186,7 @@ dataset <- function(type){
 library(tidyverse) #includes the dplyr and tidyr packages
 library(dplyr)
 library(tidyr)
-library(lubridate)
+
 
 # ---------------Startup--------------------
 # View all types
@@ -149,9 +225,9 @@ int <- c('text','itemnum','miles','numbids','address','store','pwrseller',
          'highbidderfdback','reserve','buyitnow','sellfdbackpct','photos',
          'descriptionsize','options','doors','trans','webpage','title',
          'condition','model','cyl','length','age','age2','html','sellerborn',
-         'week','auction','n','temp','X_merge','totallisted','totalsold',
-         'carmodel','ageXphoto','warrantyXphoto','warrantyXage','warrantyXageXphotos',
-         'group')
+         'week','auction','n','totallisted','totalsold','carmodel',
+         'ageXphoto','warrantyXphoto','warrantyXage','warrantyXageXphotos',
+         'group','auc_mins','maxbidtime')
 df2 <- cbind(df2,suppressWarnings(sapply(X=orig_data[int], FUN=as.integer)))
 orig_data <- orig_data[,-which(colnames(orig_data) %in% int)] ##update data set unchecked
 list <- append(list,int)
@@ -182,12 +258,13 @@ con2yr <- colnames(orig_data)[grepl("^con2year*",colnames(orig_data))]
 con2n <- colnames(orig_data)[grepl("^con2n*",colnames(orig_data))]
 con2wk <- colnames(orig_data)[grepl("^con2week*",colnames(orig_data))]
 
-factor <- c('inspection','questions','relistflag','featured','phone','addedinfo',
+factor <- c('inspection','relistflag','featured','phone','addedinfo',
             ding,scratch,dent,broken,crack,problem,rust,
             'endsunday','primetime','warranty','relist','sell','dealer',
             contmode,contyr,contwk,con2n)
 df2 <- cbind(df2,suppressWarnings(sapply(X=orig_data[factor], FUN=as.factor)))
 orig_data <- orig_data[,-which(colnames(orig_data) %in% factor)] ##update data set unchecked
 list <- append(list,factor)
-
+orig_data <- cbind(df2,orig_data)
+rm(df2)  
 
