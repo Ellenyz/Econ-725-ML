@@ -7,18 +7,23 @@
 # 3. Please comment on the code as clearly as possible
 # --------------------------
 
+
 library("haven")
+library(tidyverse) #includes the dplyr and tidyr packages
+library(dplyr)
+library(tidyr)
 
 #setwd('C:/Users/Sachin/Desktop/my_725_project_work')
 # Importing the dataset
-df1 <- read_stata("temp.dta")
-orig_data <- data.frame(df1)
+
+df1 <- read_dta("./112439-V1/temp for project.dta")
+# orig_data <- data.frame(df1)
 
 dim(orig_data)
 # We have 146734 rows and 605 variables. 
 
-
-# Pengjin's part: Remove obviously unnecessary columns
+# Remove obviously unnecessary columns (PW)
+# -----------------------------------------
 orig_data = orig_data[ , -which(colnames(orig_data) %in% c("membersince","name","vin","highbiddername",
                                                            "sellername","questions","X_merge","temp","biddername1","biddername2",
                                                            "biddername3", "biddername4", "biddername5","biddername6","biddername7",
@@ -26,10 +31,10 @@ orig_data = orig_data[ , -which(colnames(orig_data) %in% c("membersince","name",
                                                            "biddername13","biddername14","biddername15","biddername16","biddername17",
                                                            "biddername18","biddername19","biddername20","biddername21","biddername22"))]
 
-#Finally, I removed 30 variables.
+# We have 146734 rows and 575 variables (We removed 30 variables).
 
-# --------------------
-# JL's part: date and time
+# Fixing date and time date and time (JL)
+# --------------------------------------
 ## generally, two types of datetime vars here: standard and numeric
 ## turn standard to time var:
 
@@ -66,7 +71,7 @@ orig_data$maxbidtime = orig_data$biddate1 - orig_data$startingdate
 # Sachin's part
 # I have checked the "orig_data" data file and there are no completely empty columns in it.
 # But, I found some columns that have a lot of NA values. 
-# I have creat the "data_na" dataset that contain NA values columns. Check the following dataset.
+# I have create the "data_na" dataset that contain NA values columns. Check the following dataset.
 # biddername15, biddy15, biddername16, biddy16, biddername17, biddy17, biddername18, biddy18, biddername19, biddy19, biddername20, biddy20, biddername21, biddy21, biddername22, biddy22, biddate15, bidhour15, bidminute15, bidsecond15, biddate16, bidhour16, bidminute16, bidsecond16, biddate17, bidhour17, bidminute17, bidsecond17, biddate18, bidhour18, bidminute18, bidsecond18, biddate19, bidhour19, bidminute19, bidsecond19, biddate20, bidhour20, bidminute20, bidsecond20, biddate21, bidhour21, bidminute21, bidsecond21, biddate22, bidhour22, bidminute22, bidsecond22
 
 data_na <- subset(orig_data, select=c(biddy15, biddy16, biddy17, biddy18, biddy19, biddy20, 
@@ -83,8 +88,48 @@ data_na$na_count <- apply(is.na(data_na), 1, sum)
 # Remove all NA values from the data.
 #data_na <- na.omit(data_na)
 
-# End sachin's part
-# -------------------------------------------------------------------------
+
+# Fixing date and time
+# --------------------------------------------------------------
+# 1. Use the "enddate", "startdate" to calculate month indicator (1,...,12)
+
+orig_data$start_m = match(substr(orig_data$startdate, 1, 3), month.abb)
+orig_data$end_m = match(substr(orig_data$enddate, 1, 3), month.abb)
+
+# 2. Use month indicator to calculate season
+
+attach(orig_data)
+orig_data$start_s <- ifelse(start_m==12 | start_m==1 | start_m==2, "Winter", 
+                            ifelse(start_m==3 | start_m==4 | start_m==5, "Spring", 
+                                   ifelse(start_m==6 | start_m==7 | start_m==8, "Summer",
+                                          ifelse(start_m==9 | start_m==10 | start_m==11, "Fall", 
+                                                 NA))))
+
+orig_data$end_s <- ifelse(end_m==12 | end_m==1 | end_m==2, "Winter", 
+                            ifelse(end_m==3 | end_m==4 | end_m==5, "Spring", 
+                                   ifelse(end_m==6 | end_m==7 | end_m==8, "Summer",
+                                          ifelse(end_m==9 | end_m==10 | end_m==11, "Fall", 
+                                                 NA))))
+
+# 2a. Create dummy indicating if auction happened in car-demand peak season
+orig_data$peak_s = ifelse(orig_data$start_s=="Spring" | orig_data$start_s=="Fall",
+                          1, 0)
+
+# 2b. Create dummy indicating if start and end season are different
+orig_data$season_trans = ifelse(orig_data$start_s!=orig_data$end_s,
+                                1, 0)
+
+# 3. Var "length" is auction lasts in days, all set
+# 4. Var "endday" is weekday indicator (1,...,7), all set
+# 5. Var "endhour" is which the hour (24hr-clock) the auction ends, all set
+# 6. Var "endsunday" is a dummy pointing if endday is Sunday, all set
+
+# 7. Among "biddate1" "bidhour1" "bidminute1" "bidsecond1":
+## 7a. Calculate how long it took for the highest bid to appear
+orig_data$max_evot = orig_data$biddate1 - orig_data$startingdate
+
+# 7Note: All others from "biddate2" to "bidsecond22"...are no longer useful here 
+
 
 # -------------------------------------------------------------------------
 # This original dataset is a mixture of 'raw variables' and 'variables derived by the author'.
@@ -162,30 +207,6 @@ dataset <- function(type){
 # Creating a data set with all the vars
 dataset("raw")
 
-
-
-
-
-# -------
-# 1) Start working with the author's temp file (after a bit of modification to the code).
-#     this solves the problem of creating dummy variables -- AD [done]
-# 2) Remove obviously unnecessary columns such as bidders name -- PW [done]
-# 3) change the time and date variables to make them suitable for a regression. -- JL
-# 4) Remove completely empty columns -- SB
-# 5) Ensure variable types is correct. -- YW
-# 5) 
-
-
-
-
-?read.dta
-
-
-# -------------Yuzhou's Part-----------------
-# Install and lib useful pkgs
-library(tidyverse) #includes the dplyr and tidyr packages
-library(dplyr)
-library(tidyr)
 
 
 # ---------------Startup--------------------
@@ -267,4 +288,5 @@ orig_data <- orig_data[,-which(colnames(orig_data) %in% factor)] ##update data s
 list <- append(list,factor)
 orig_data <- cbind(df2,orig_data)
 rm(df2)  
+
 
