@@ -7,9 +7,7 @@
 # 3. Please comment on the code as clearly as possible
 # --------------------------
 
-
-
-library("haven")
+library(haven)
 library(tidyverse) #includes the dplyr and tidyr packages
 library(dplyr)
 library(tidyr)
@@ -17,7 +15,7 @@ library(tidyr)
 #setwd('C:/Users/Sachin/Desktop/my_725_project_work')
 # Importing the dataset
 
-# df1 <- read_dta("temp for project.dta")
+# df1 <- read_dta("../files for project/temp for project.dta")
 orig_data <- data.frame(df1)
 
 dim(orig_data)
@@ -69,7 +67,7 @@ orig_data$end_m = match(substr(orig_data$enddate, 1, 3), month.abb)
 
 # 2. Use month indicator to calculate season
 
-# ERROR: attach(orig_data)
+attach(orig_data)
 orig_data$start_s <- ifelse(start_m==12 | start_m==1 | start_m==2, "Winter", 
                             ifelse(start_m==3 | start_m==4 | start_m==5, "Spring", 
                                    ifelse(start_m==6 | start_m==7 | start_m==8, "Summer",
@@ -107,7 +105,7 @@ orig_data$max_evot = orig_data$biddate1 - orig_data$startingdate
 # -------------------------------
 ## Create a full list of var names 
 all <- colnames(orig_data)
-all
+
 ## A list of var names with good types
 list <- c()
 
