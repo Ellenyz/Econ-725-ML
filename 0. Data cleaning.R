@@ -105,24 +105,16 @@ orig_data$max_evot = orig_data$biddate1 - orig_data$startingdate
 # -------------------------------
 ## Create a full list of var names 
 all <- colnames(orig_data)
-
+all
 ## A list of var names with good types
 list <- c()
 
 # -------------
 # Working on character variables
-df2 <- orig_data[, sapply(orig_data, class) == 'character']
-
-# AD: These variables need to be fixed from character to date-time type
-## Date <- c('membersince','enddate','startdate')  These date vars are in type of chars by default
-
-chr <- c(colnames(df2),'sellerid') # vector of all chr names
-list <- append(list,chr)
-# SOME PROBLEM -----> df2 <- cbind(df2,as.character(orig_data['sellerid']))
+list <- append(list,'sellerid')
+df2 <- orig_data['sellerid']
 
 orig_data <- orig_data[,-which(colnames(orig_data) %in% list)] ##update data set unchecked
-
-## After checking, all chr variables have been set as default. df2 is the dataframe with all checked vars
 
 # Date variables:
 # Time relevant int
@@ -131,7 +123,7 @@ bidhour <- colnames(orig_data)[grepl("^bidhour*",colnames(orig_data))]
 bidminute <- colnames(orig_data)[grepl("^bidminute*",colnames(orig_data))]
 bidsecond <- colnames(orig_data)[grepl("^bidsecond*",colnames(orig_data))]
 int.time <- c('year',biddate,bidhour,bidminute,bidsecond,'endhour','endingdate','startingdate','endday')
-df2 <- cbind(df2,suppressWarnings(sapply(X=orig_data[int.time], FUN=as.integer)))
+df2 <- cbind(df2,suppressWarnings(lapply(X=orig_data[int.time], FUN=as.integer)))
 orig_data <- orig_data[,-which(colnames(orig_data) %in% int.time)] ##update data set unchecked
 list <- append(list,int.time)
 
@@ -143,9 +135,9 @@ int <- c('text','itemnum','miles','numbids','address','store','pwrseller',
          'condition','model','cyl','length','age','age2','html','sellerborn',
          'week','auction','n','totallisted','totalsold','carmodel',
          'ageXphoto','warrantyXphoto','warrantyXage','warrantyXageXphotos',
-         'group','auc_mins','maxbidtime')
+         'group','auc_mins','maxbidtime','auc_duration_mins','max_evot')
 
-# ----> Some problem df2 <- cbind(df2,suppressWarnings(sapply(X=orig_data[int], FUN=as.integer)))
+cbind(df2,suppressWarnings(lapply(X=orig_data[int], FUN=as.integer)))
 orig_data <- orig_data[,-which(colnames(orig_data) %in% int)] ##update data set unchecked
 list <- append(list,int)
 
@@ -154,7 +146,7 @@ num <- c('bookvalue','pctfdback','startbid','sellerage','negpct','compindex',c(p
 lognum <- c('logmiles','logtext','logsize','logstart','logfdback','logphotos',
             'loghtml','logage','logbook',c(paste0('logbid',1:3)))
 num.full <- c(num,lognum)
-df2 <- cbind(df2,suppressWarnings(sapply(X=orig_data[num.full], FUN=as.numeric)))
+df2 <- cbind(df2,suppressWarnings(lapply(X=orig_data[num.full], FUN=as.numeric)))
 orig_data <- orig_data[,-which(colnames(orig_data) %in% num.full)] ##update data set unchecked
 list <- append(list,num.full)
 
@@ -178,12 +170,15 @@ con2wk <- colnames(orig_data)[grepl("^con2week*",colnames(orig_data))]
 factor <- c('inspection','relistflag','featured','phone','addedinfo',
             ding,scratch,dent,broken,crack,problem,rust,
             'endsunday','primetime','warranty','relist','sell','dealer',
+            'maker','interior','exterior','location','software','caradphotos',
             contmode,contyr,contwk,con2n)
-df2 <- cbind(df2,suppressWarnings(sapply(X=orig_data[factor], FUN=as.factor)))
+df2 <- cbind(df2,lapply(X=orig_data[factor], FUN=as.factor))
 orig_data <- orig_data[,-which(colnames(orig_data) %in% factor)] ##update data set unchecked
 list <- append(list,factor)
+
 orig_data <- cbind(df2,orig_data)
 rm(df2)  
+
 
 # ------------------------------------------------------------------
 # Sachin's part
