@@ -15,6 +15,7 @@ library(tidyr)
 df1 <- read_dta("temp.dta")
 orig_data <- data.frame(df1)
 
+
 # Setting correct variable types
 # -------------------------------
 ## Create a full list of var names 
