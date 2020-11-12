@@ -33,33 +33,9 @@ orig_data = orig_data[ , -which(colnames(orig_data) %in% c("membersince","name",
 dim(orig_data)
 # We have 146734 rows and 575 variables (We removed 30 variables).
 
+
+# -----------------------------------------------
 # Fixing date and time date and time (JL)
-# --------------------------------------
-## generally, two types of datetime vars here: standard and numeric
-## turn standard to time var:
-
-orig_data$enddate = strptime(orig_data$enddate, "%b-%d-%y %H:%M:%S")
-orig_data$startdate = strptime(orig_data$startdate, 
-                               "%b-%d-%y %H:%M:%S")
-### auction last in mins
-orig_data$auc_duration_mins = as.numeric(difftime(orig_data$enddate,
-                                                  orig_data$startdate,
-                                                  units="mins"))
-
-# Note: 
-#   1) The var "length" is auction lasts in days does the same thing
-#   2) Note that any var that link "bid" and "1" (eg. logbid1) relates to the highest bid
-
-# Deal with nemeric time var:
-
-### Calculate how long it takes for the highest bidder to make decision (in days)
-
-orig_data$maxbidtime = orig_data$biddate1 - orig_data$startingdate
-
-# Note: I think bidhour, bidminute, bidsec, etc should not be necessary as the best way to
-#     handle time is to calculate duration i.e. time difference it doesn't make sense to 
-#     include a numeric value i.e. bidhour
-
 # 1. Use the "enddate", "startdate" to calculate month indicator (1,...,12)
 
 orig_data$start_m = match(substr(orig_data$startdate, 1, 3), month.abb)
@@ -98,8 +74,7 @@ orig_data$season_trans = ifelse(orig_data$start_s!=orig_data$end_s,
 orig_data$max_evot = orig_data$biddate1 - orig_data$startingdate
 
 # 7Note: All others from "biddate2" to "bidsecond22"...are no longer useful here 
-
-
+# --------------------------------------------------END
 
 # Setting correct variable types
 # -------------------------------
@@ -140,8 +115,7 @@ int_list <- c(int_list,'year','endhour','endingdate','startingdate','endday','te
               'miles','numbids','address','store','pwrseller','highbidderfdback',
               'reserve','buyitnow','sellfdbackpct','photos','descriptionsize','options','doors',
               'trans','webpage','title','condition','model','cyl','length','age','age2','html',
-              'sellerborn','week','auction','n','totallisted','totalsold','maxbidtime',
-              'auc_duration_mins','max_evot')
+              'sellerborn','week','auction','n','totallisted','totalsold')
 orig_data <- orig_data %>% mutate_at(.vars = int_list, .funs = as.integer)
 list <- append(list,int_list)
 all <- all[which(!all %in% list)]
