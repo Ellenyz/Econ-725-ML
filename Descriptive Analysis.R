@@ -3,32 +3,49 @@ library(tidyverse) #includes the dplyr and tidyr packages
 library(dplyr)
 library(tidyr)
 library(data.table)
+library(ggplot2)
+library(ggthemes)
 library(stargazer)
 
 #save(orig_data,file='../files for project/orig_data.RData')
 load(file='../files for project/orig_data.RData')
 
+# Set labels  
+orig_data$dealer <- factor(orig_data$dealer, level=c(0,1,NA), labels = c('Seller','Dealer'))
+orig_data$inspection <- factor(orig_data$inspection, level=c(0,1,NA), labels = c('Without Inspection','With Inspection'))
+orig_data$reserve <- factor(orig_data$reserve, level=c(0,1,NA), labels = c('No Reserve Prive','With Secret Reserve'))
+orig_data$buyitnow <- factor(orig_data$buyitnow, level=c(0,1,NA), labels = c('No BUYITNOW Option','With BUYITNOW Option'))
+
 #-----------------------
 # Part 1 Summary Statistics (Proportion of services provided, grouping by seller/dealer)
-buyoptions_vec <- c('inspection','reserve','buyitnow')
+desc_data <- orig_data %>% select(dealer,inspection, reserve, buyitnow) %>%
+  na.omit() %>% 
+  group_by(dealer) ##group by dealer and private seller 
 
-desc_data <- orig_data %>% select(dealer,all_of(buyoptions_vec)) %>%
-  na.omit() %>%
-  group_by(dealer)  ##group by dealer and private seller 
+type_seller <- desc_data %>% summarise(Number_of_sellerdealer=n())
 
-# Set labels  
-desc_data$dealer <- factor(desc_data$dealer, labels = c('Seller','Dealer'))
-desc_data$inspection <- factor(desc_data$inspection,labels = c('Without Inspection','With Inspection'))
-desc_data$reserve <- factor(desc_data$reserve,level=c(0,1), labels = c('No Reserve Prive','With Secret Reserve'))
-desc_data$buyitnow <- factor(desc_data$buyitnow,level=c(0,1), labels = c('No BUYITNOW Option','With BUYITNOW Option'))
 # Get Descriptive Tables
+buyoptions_vec <- c('inspection', 'reserve', 'buyitnow')
 table <- NULL
 for (i in 1:3){
   table_i <- table(desc_data[c(buyoptions_vec[i],'dealer')])
   table_i <- round(prop.table(table_i),4)
   table <- rbind(table,table_i)
 }
+table <- t(table)
 data.frame(table)
+
+# Plotting
+##1st plt
+ggplot(desc_data, aes(dealer)) + ggtitle("Distribution of Seller/Dealer") +  geom_bar() +
+  xlab("Type of Sellers") + ylab("Number of Obs")
+
+##2nd plt
+bp <- barplot(table[,c(2,4,6)], main="Distribution of Options",
+        ylab="Proportion", col=c("darkblue","red"), ylim=range(0,0.4),
+        legend = rownames(table), beside=TRUE, cex.axis = 0.8, cex.lab=0.8, cex.names = 0.8)
+text(bp,table[,c(2,4,6)],table[,c(2,4,6)],cex=1,pos=3)
+
 
 #-------------------------
 # Part 2 
@@ -48,10 +65,14 @@ biddy <- biddy %>% mutate(winningbid=apply(biddy,1,FUN=my.max)) %>%
 
 biddy <- orig_data %>% select('dealer','reserve','bookvalue','numbids','startbid','totallisted','totalsold') %>% 
   add_column(biddy['winningbid']) %>%
-  mutate(margin=winningbid - bookvalue)
+  mutate(margin=winningbid - bookvalue) 
+biddy %>% group_by(dealer) %>%   summarize(mean_numbids = mean(numbids, na.rm = TRUE),
+                                             mean_totalsold = mean(totalsold, na.rm = TRUE))
+  
 biddy
 ## I found a great amount of obs have negative margin <- (winningbid - bookvalue)
 
+#stargazer(table)
 
 
 
