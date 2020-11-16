@@ -35,17 +35,6 @@ for (i in 1:3){
 table <- t(table)
 data.frame(table)
 
-# Plotting
-##1st plt
-ggplot(desc_data, aes(dealer)) + ggtitle("Distribution of Seller/Dealer") +  geom_bar() +
-  xlab("Type of Sellers") + ylab("Number of Obs")
-
-##2nd plt
-bp <- barplot(table[,c(2,4,6)], main="Distribution of Options",
-        ylab="Proportion", col=c("darkblue","red"), ylim=range(0,0.4),
-        legend = rownames(table), beside=TRUE, cex.axis = 0.8, cex.lab=0.8, cex.names = 0.8)
-text(bp,table[,c(2,4,6)],table[,c(2,4,6)],cex=1,pos=3)
-
 
 #-------------------------
 # Part 2 
@@ -66,12 +55,45 @@ biddy <- biddy %>% mutate(winningbid=apply(biddy,1,FUN=my.max)) %>%
 biddy <- orig_data %>% select('dealer','reserve','bookvalue','numbids','startbid','totallisted','totalsold') %>% 
   add_column(biddy['winningbid']) %>%
   mutate(margin=winningbid - bookvalue) 
-biddy %>% group_by(dealer) %>%   summarize(mean_numbids = mean(numbids, na.rm = TRUE),
-                                             mean_totalsold = mean(totalsold, na.rm = TRUE))
-  
-biddy
 ## I found a great amount of obs have negative margin <- (winningbid - bookvalue)
 
+sum <- biddy %>% group_by(dealer) %>% 
+  dplyr::summarize(mean_numbids = mean(numbids, na.rm = TRUE),
+                    mean_totalsold = mean(totalsold, na.rm = TRUE),
+                    mean_totallisted = mean(totallisted, na.rm = TRUE),
+                    mean_bookvalue = mean(bookvalue, na.rm = TRUE),
+                    mean_winningbid = mean(winningbid, na.rm = TRUE))
+sum <- data.frame(sum)
+print('Sellers have great lower number of bids, sales, total listed and bookvalue on average comparing with dealers.')
+
+
+#-----------------------------------------
+# Plotting
+##1st plt
+ggplot(desc_data, aes(dealer)) + ggtitle("Distribution of Seller/Dealer") +  geom_bar() +
+  xlab("Type of Sellers") + ylab("Number of Obs")
+
+##2nd plt
+bp <- barplot(table[,c(2,4,6)], main="Distribution of Options",
+              ylab="Proportion", col=c("darkblue","red"), ylim=range(0,0.4),
+              legend = rownames(table), beside=TRUE, cex.axis = 0.8, cex.lab=0.8, cex.names = 0.8)
+text(bp,table[,c(2,4,6)],table[,c(2,4,6)],cex=1,pos=3)
+
+##3rd plt
+sum <- reshape2::melt(sum,id.vars='dealer')
+sum$variable <- factor(sum$variable,labels=c('Mean Number of Bids','Meam Total Sold',
+                                             'Mean Total Listed','Mean Bookvalue','Winning Bid'))
+
+ggplot(sum[1:6,],aes(variable,value,fill=dealer)) +
+  geom_bar(stat="identity",position="dodge") 
+
+##4th plt
+ggplot(sum[7:10,],aes(variable,value,fill=dealer)) +
+  geom_bar(stat="identity",position="dodge")
+
+
+
+#Out for LaTex:
 #stargazer(table)
 
 
