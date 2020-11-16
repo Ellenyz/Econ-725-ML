@@ -81,7 +81,7 @@ text(bp,table[,c(2,4,6)],table[,c(2,4,6)],cex=1,pos=3)
 
 ##3rd plt
 sum <- reshape2::melt(sum,id.vars='dealer')
-sum$variable <- factor(sum$variable,labels=c('Mean Number of Bids','Meam Total Sold',
+sum$variable <- factor(sum$variable,labels=c('Mean Number of Bids','Mean Total Sold',
                                              'Mean Total Listed','Mean Bookvalue','Winning Bid'))
 
 ggplot(sum[1:6,],aes(variable,value,fill=dealer)) +
