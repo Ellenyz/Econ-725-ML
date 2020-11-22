@@ -4,7 +4,11 @@
 # 3) Run the logistic regression model 
 # 4) Run the linear reg model for biddy1
 
+library(haven)
 library(lubridate)
+library(ggplot2)
+library(cowplot)
+library(randomForest)
 library(tidyverse)
 library(caret)
 library(leaps)
@@ -17,7 +21,7 @@ orig_data <- data.frame(df1)
 
 # Remove obviously unnecessary columns (PW)
 # -----------------------------------------
-orig_data = orig_data[ , -which(colnames(orig_data) %in% c("membersince","name","vin","highbiddername",
+orig_data = orig_data[ , -which(colnames(orig_data) %in% c("membersince","name","vin","highbiddername", "itemnum", "location",
                                                            "sellername","questions","X_merge","temp","biddername1","biddername2",
                                                            "biddername3", "biddername4", "biddername5","biddername6","biddername7",
                                                            "biddername8","biddername9","biddername10","biddername11","biddername12",
@@ -41,11 +45,11 @@ list <- c()
 # Setting character type
 # -------------------------
 # Convert the following to character types
-orig_data$itemnum <- as.character(orig_data$itemnum)
-orig_data$location <- as.character(orig_data$location)
+#orig_data$itemnum <- as.character(orig_data$itemnum)
+#orig_data$location <- as.character(orig_data$location)
 
 # Add the converted variables to the converted list
-list <- c('itemnum', 'location')
+#list <- c('itemnum', 'location')
 
 # Fish out the remaining dirty variables
 all <- all[which(!all %in% list)]
@@ -63,10 +67,10 @@ for (i in condition){
   fac_list <- append(fac_list,vec)
 }
 
-# Adding all the other factor variables manually.
+# Adding all the other factor variables manually. # AD: moved caradphotos to integers
 fac_list <- c(fac_list,'inspection','relistflag','featured','phone','addedinfo',
               'endsunday','primetime','warranty','relist','sell','dealer',
-              'maker','interior','exterior','software','caradphotos', 'address')  # AD : removed location and added to character.
+              'maker','interior','exterior','software', 'address')  # AD : removed location and added to character.
 
 # Convert all the variables in the 'fac_list' to a factor type
 orig_data <- orig_data %>% mutate_at(.vars = fac_list, .funs = as.factor)
@@ -89,7 +93,7 @@ int_list <- c(int_list,'year','endhour','endingdate','startingdate','endday','te
               'miles','numbids','store','pwrseller','highbidderfdback',
               'reserve','buyitnow','sellfdbackpct','photos','descriptionsize','options','doors',  # AD: removed address and added to factor
               'trans','webpage','title','condition','model','cyl','length','age','age2','html',
-              'sellerborn','week','auction','n','totallisted','totalsold') 
+              'sellerborn','week','auction','n','totallisted','totalsold','caradphotos') 
 
 # AD: removed these three variables for now: ,'maxbidtime', 'auc_duration_mins','max_evot')         
 
@@ -170,6 +174,66 @@ glimpse(df2)
 100*nrow(df2)/nrow(orig_data)
 # We get 30k observations, which is about 20% of the data
 
+
+# ------------------------
+# Running a RF model
+# ------------------------
+# source
+head(df2)
+str(df2)
+
+# Lets remove the raw variables, and play with only the ones derived by the author
+
+# ---------
+raw <- c("ding_barely", "ding_minute", "ding_negligible", "ding_small", "ding_limited", "ding_almost", "ding_minor", "ding_little", "ding_invisible",
+         "ding_wide", "ding_enormous", "ding_noticeable", "ding_large", "ding_obvious", "ding_major", "ding_substantial", "ding_visible", "ding_huge", "ding_medium", "ding_big", "ding_significant", "ding_sizable", "ding_vast",
+         "ding_apparent", "ding_known", "ding_no", "ding_free", "ding_never", "ding_nothing", "ding_seldom", "ding_one", "ding_rarely", "ding_only", "ding_hardly", "ding_couple",
+         "ding_several", "ding_much", "ding_very", "ding_extremely", "ding_many", "ding_some", "ding_pic", "ding_photo", "dent_barely", "dent_minute", "dent_negligible", "ding_small", "dent_limited", "dent_almost", "dent_minor", "dent_little", "dent_invisible",
+         "dent_wide", "dent_enormous", "dent_noticeable", "dent_large", "dent_obvious", "dent_major", "dent_substantial", "dent_huge", "dent_medium", "dent_big", "dent_significant", "dent_sizable", "dent_vast",
+         "dent_apparent", "dent_known", "dent_no", "dent_free", "dent_never", "dent_nothing", "dent_seldom", "dent_one", "dent_rarely", "dent_only", "dent_hardly", "dent_couple",
+         "dent_several", "dent_much", "dent_very", "dent_extremely", "dent_many", "dent_some", "dent_pic", "dent_photo", 
+         "crack_barely", "crack_minute", "crack_small", "crack_limited", "crack_almost", "crack_minor", "crack_little", "crack_invisible",
+         "crack_enormous", "crack_noticeable", "crack_obvious", "crack_major", "crack_substantial", "crack_visible", "crack_huge", "crack_big", "crack_significant", "crack_sizable", "crack_vast",
+         "crack_apparent", "crack_known", "crack_no", "crack_free", "crack_never", "crack_nothing", "crack_seldom", "crack_one", "crack_rarely", "crack_only", "crack_hardly", "crack_couple", 
+         "crack_several", "crack_much", "crack_very", "crack_extremely", "crack_many", "crack_some", "crack_pic", "crack_photo", 
+         "problem_barely", "problem_minute", "problem_negligible", "problem_small", "problem_limited", "problem_almost", "problem_minor", "problem_little", "problem_invisible", 
+         "problem_wide", "problem_enormous", "problem_noticeable", "problem_large", "problem_obvious", "problem_major", "problem_substantial", "problem_visible", "problem_huge", "problem_medium", "problem_big", "problem_significant", "problem_sizable", "problem_vast",
+         "problem_apparent", "problem_known", "problem_no", "problem_free", "problem_never", "problem_nothing",
+         "problem_seldom", "ding_one", "problem_rarely", "problem_only", "problem_hardly", "problem_couple", "problem_several", "problem_much", "problem_very", "problem_extremely", "problem_many", "problem_some",
+         "problem_pic", "problem_photo", "rust_barely", "rust_minute", "rust_negligible", "rust_small", "rust_limited", "rust_almost", "rust_minor", "rust_little", "rust_invisible",
+         "rust_wide", "rust_enormous", "rust_noticeable", "rust_large", "rust_obvious", "rust_major", "rust_substantial", "rust_visible", "rust_huge", "rust_medium", "rust_big", "rust_significant", "rust_sizable", "rust_vast",
+         "rust_apparent", "rust_known","rust_no", "rust_free",  "rust_never", "rust_nothing", "rust_seldom", "rust_one", "rust_rarely", "rust_only", "rust_hardly", "rust_couple",
+         "rust_several", "rust_much", "rust_very", "rust_extremely", "rust_many", "rust_some", "rust_pic", "rust_photo", "scratch_barely", "scratch_minute", "scratch_negligible", "scratch_small", "scratch_limited", "scratch_almost", "scratch_minor", "scratch_little", "scratch_invisible",
+         "scratch_wide", "scratch_enormous", "scratch_noticeable", "scratch_large", "scratch_obvious", "scratch_major", "scratch_substantial", "scratch_visible", "scratch_huge", "scratch_medium", "scratch_big", "scratch_significant", "scratch_sizable", "scratch_vast",
+         "scratch_apparent", "scratch_known", "scratch_no", "scratch_free", "scratch_never", "scratch_nothing", "scratch_seldom", "scratch_one", "scratch_rarely", "scratch_only", "scratch_hardly", "scratch_couple",
+         "scratch_several", "scratch_much", "scratch_very", "scratch_extremely", "scratch_many", "scratch_some", "scratch_pic", "scratch_photo",
+         "broken_barely", "broken_minute", "broken_negligible", "broken_small", "broken_limited", "broken_almost", "broken_minor", "broken_little", "broken_invisible",
+         "broken_wide", "broken_enormous", "broken_noticeable", "broken_large", "broken_obvious", "broken_major", "broken_substantial", "broken_visible", "broken_huge", "broken_medium", "broken_big", "broken_significant", "broken_sizable", "broken_vast",
+         "broken_apparent", "broken_known", "broken_no", "broken_free",  "broken_never", "broken_nothing", "broken_seldom", "broken_one", "broken_rarely", "broken_only", "broken_hardly", "broken_couple",
+         "broken_several", "broken_much", "broken_very", "broken_extremely", "broken_many", "broken_some", "broken_pic", "broken_photo", "ding",
+         "ding_negation", "ding_good", "ding_low", "ding_high", "scratch", "scratch_negation", "scratch_good", "scratch_low", "scratch_high", "scratch_bad",
+         "crack", "crack_negation", "crack_good", "crack_low", "crack_high", "crack_bad", "broken", "broken_negation", "broken_good", "broken_low", 
+         "broken_high", "dent", "dent_negation", "dent_good", "dent_low", "dent_high", "dent_bad", "problem", "problem_negation", "problem_good", "problem_low",
+         "problem_high", "rust", "rust_negation", "rust_good", "rust_low", "rust_high", "rust_bad")
+
+# --------
+df3 <- df2[ , !(names(df2) %in% raw)]
+
+colnames(df3)
+
+dfx <- df3[1:1000,unique(c("sell", colnames(df3[,6:30])))]
+colnames(dfx)
+
+
+#Imputing data
+dfx.impute <- rfImpute(sell ~ ., data = dfx, iter = 6)
+
+# Vector memory reached. Not functioning
+model <- randomForest(sell ~ ., data = dfx.impute, proximity = TRUE)
+model
+
+
+# ---------------------------------
 # Running regressions
 # ---------------------------------
 
