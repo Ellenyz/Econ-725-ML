@@ -67,7 +67,7 @@ orig_data$end_m = match(substr(orig_data$enddate, 1, 3), month.abb)
 
 # 2. Use month indicator to calculate season
 
-attach(orig_data)
+#attach(orig_data)
 orig_data$start_s <- ifelse(start_m==12 | start_m==1 | start_m==2, "Winter", 
                             ifelse(start_m==3 | start_m==4 | start_m==5, "Spring", 
                                    ifelse(start_m==6 | start_m==7 | start_m==8, "Summer",
