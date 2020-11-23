@@ -70,26 +70,31 @@ print('Sellers have great lower number of bids, sales, total listed and bookvalu
 #-----------------------------------------
 # Plotting
 ##1st plt
-ggplot(desc_data, aes(dealer)) + ggtitle("Distribution of Seller/Dealer") +  geom_bar() +
+plt1 <- ggplot(desc_data, aes(dealer)) + ggtitle("Distribution of Seller/Dealer") +  geom_bar() +
   xlab("Type of Sellers") + ylab("Number of Obs")
 
 ##2nd plt
-bp <- barplot(table[,c(2,4,6)], main="Distribution of Options",
+plt2 <- barplot(table[,c(2,4,6)], main="Distribution of Options",
               ylab="Proportion", col=c("darkblue","red"), ylim=range(0,0.4),
               legend = rownames(table), beside=TRUE, cex.axis = 0.8, cex.lab=0.8, cex.names = 0.8)
-text(bp,table[,c(2,4,6)],table[,c(2,4,6)],cex=1,pos=3)
+text(plt2,table[,c(2,4,6)],table[,c(2,4,6)],cex=1,pos=3)
 
 ##3rd plt
 sum <- reshape2::melt(sum,id.vars='dealer')
 sum$variable <- factor(sum$variable,labels=c('Mean Number of Bids','Mean Total Sold',
                                              'Mean Total Listed','Mean Bookvalue','Mean Winning Bid'))
 
-ggplot(sum[1:6,],aes(variable,value,fill=dealer)) +
-  geom_bar(stat="identity",position="dodge") 
+plt3 <- ggplot(sum[1:6,],aes(variable,value,fill=dealer)) +
+  geom_bar(stat="identity",position="dodge") + ggtitle("Number of Sales and Lists by Seller/Dealer") +
+  geom_text(aes(label = round(sum[1:6,]$value,2), y = sum[1:6,]$value + 1), position = position_dodge(width = 1)) + 
+  xlab('Variables') + ylab('Average Numbers')
+ 
 
 ##4th plt
-ggplot(sum[7:10,],aes(variable,value,fill=dealer)) +
-  geom_bar(stat="identity",position="dodge")
+plt4 <- ggplot(sum[7:10,],aes(variable,value,fill=dealer)) +
+  geom_bar(stat="identity",position="dodge") + ggtitle("Bookvalue and Winning Bid by Seller/Dealer") +
+  geom_text(aes(label = round(sum[7:10,]$value,2), y = sum[7:10,]$value + 300), position = position_dodge(width = 1)) + 
+  xlab('Variables') + ylab('US Dollar')
 
 
 
