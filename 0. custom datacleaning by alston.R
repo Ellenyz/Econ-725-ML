@@ -42,14 +42,13 @@ list <- c()
 
 
 # -------------------------
-# Setting character type
+# Setting character type - NONE
 # -------------------------
 # Convert the following to character types
-#orig_data$itemnum <- as.character(orig_data$itemnum)
-#orig_data$location <- as.character(orig_data$location)
+
 
 # Add the converted variables to the converted list
-#list <- c('itemnum', 'location')
+list <- c('itemnum', 'location')
 
 # Fish out the remaining dirty variables
 all <- all[which(!all %in% list)]
@@ -155,24 +154,12 @@ orig_data <- subset(orig_data, select = -c(enddate, startdate))
 
 # Removing objects created during the process of datacleaning
 
-rm(all,i,list,num_list,time,vec, condition, fac_list, int_list) ##Remove useless values
+
 dim(orig_data)
 glimpse(orig_data)
+saveRDS(orig_data, "../files for project/cleaned_data")
 
-# Data cleaning complete ------------------------------------------------------------
-
-# 0. Find the most frequent car
-# ---------------------------------
-sort(table(orig_data$model))
-
-# We see that the most frequent maker is Ford (some car within ford that is converted to a factor and unable to read)
-# So we subset the dataset by Ford (some car within ford that is converted to a factor and unable to read)
-
-df2 <- orig_data[orig_data$model == "39", ]
-
-100*nrow(df2)/nrow(orig_data)
-# We get 30k observations, which is about 20% of the data
-
+rm(all,i,list,num_list,time,vec, condition, fac_list, int_list, df1, orig_data) ##Remove useless objects
 
 # ------------------------
 # Running a RF model
@@ -242,39 +229,6 @@ colnames(dfx)
 dfx.impute <- rfImpute(sell ~ ., data = dfx, iter = 6)
 
 # Vector memory reached. Not functioning
-model <- randomForest(sell ~ ., data = dfx.impute, proximity = TRUE, ntree = 500)
-model
-
-# Finding optimal number of trees
-oob.error.rate <- data.frame(
-  Trees = rep(1:nrow(model$err.rate), times = 3),
-  Type = rep(c("OOB", "Unsold", "Sold"), each = nrow(model$err.rate)),
-  Error = c(model$err.rate[, "OOB"],
-            model$err.rate[, "0"],
-            model$err.rate[, "1"]))
-
-oob.error.rate
-
-ggplot(data = oob.error.rate, aes(x = Trees, y = Error)) +
-  geom_line(aes(color=Type))
-
-# Finding optimal number of variables at each internal node
-
-oob.values <- vector(length = 20)
-for(i in 1:length(oob.values)){
-  temp.model <- randomForest(sell ~ ., data = dfx.impute, mtry = i, ntree = 500)
-  oob.values[i] <- temp.model$err.rate[nrow(temp.model$err.rate), 1]
-}
-
-which.min(oob.values)
-
-# https://www.youtube.com/watch?v=dJclNIN-TPo
-
-# Plot the proximity matrix
-model$terms
-plot(model)
-varImpPlot(model)
-dfx.impute$totalsold
 
 # ---------------------------------
 # Running regressions
