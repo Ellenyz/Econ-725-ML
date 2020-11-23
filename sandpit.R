@@ -268,6 +268,8 @@ for(i in 1:length(oob.values)){
 
 which.min(oob.values)
 
+# https://www.youtube.com/watch?v=dJclNIN-TPo
+
 # Plot the proximity matrix
 model$terms
 plot(model)
