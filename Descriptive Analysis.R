@@ -98,10 +98,6 @@ plt4 <- ggplot(sum[7:10,],aes(variable,value,fill=dealer)) +
 
 
 
-#Out for LaTex:
-#stargazer(table)
-
-
 
 
 

@@ -67,7 +67,7 @@ orig_data$end_m = match(substr(orig_data$enddate, 1, 3), month.abb)
 
 # 2. Use month indicator to calculate season
 
-#attach(orig_data)
+attach(orig_data)
 orig_data$start_s <- ifelse(start_m==12 | start_m==1 | start_m==2, "Winter", 
                             ifelse(start_m==3 | start_m==4 | start_m==5, "Spring", 
                                    ifelse(start_m==6 | start_m==7 | start_m==8, "Summer",
@@ -105,7 +105,6 @@ orig_data$max_evot = orig_data$biddate1 - orig_data$startingdate
 # -------------------------------
 ## Create a full list of var names for debug
 all <- colnames(orig_data)
-all
 ## A list of var names with good types for debug
 list <- c()
 
@@ -124,8 +123,8 @@ for (i in condition){
 }
 
 fac_list <- c(fac_list,'inspection','relistflag','featured','phone','addedinfo',
-            'endsunday','primetime','warranty','relist','sell','dealer',
-            'maker','interior','exterior','location','software','caradphotos')  #list all factors
+              'endsunday','primetime','warranty','relist','sell','dealer',
+              'maker','interior','exterior','location','software','caradphotos')  #list all factors
 orig_data <- orig_data %>% mutate_at(.vars = fac_list, .funs = as.factor)
 list <- append(list,fac_list)
 all <- all[which(!all %in% list)]
@@ -150,16 +149,17 @@ all <- all[which(!all %in% list)]
 
 # Numeric
 num_list <- c('bookvalue','pctfdback','startbid','sellerage','negpct','compindex',c(paste0('biddy',1:22)),
-         'logmiles','logtext','logsize','logstart','logfdback','logphotos',
-         'loghtml','logage','logbook',c(paste0('logbid',1:3)))
+              'logmiles','logtext','logsize','logstart','logfdback','logphotos',
+              'loghtml','logage','logbook',c(paste0('logbid',1:3)))
 orig_data <- orig_data %>% mutate_at(.vars = num_list, .funs = as.numeric)
 list <- append(list,num_list)
 all <- all[which(!all %in% list)]
 
 glimpse(orig_data[all])  ## Remaining vars are all in good type
 
-rm(all,i,list,num_list,time,vec) ##Remove useless values
-
+rm(all,i,list,num_list,time,vec, condition, fac_list, int_list) ##Remove useless values
+dim(orig_data)
+glimpse(orig_data)
 # ------------------------------------------------------------------
 # Sachin's part
 # I have checked the "orig_data" data file and there are no completely empty columns in it.
@@ -255,12 +255,5 @@ dataset <- function(type){
 
 # Function complete: Use 'data' for the dataset -----------------------------
 
-
-
-# Creating a data set with all the vars
-dataset("raw")
-
-dim(orig_data)
-# We have 146734 rows and 605 variables. 
 
 
