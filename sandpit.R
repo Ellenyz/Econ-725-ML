@@ -70,7 +70,7 @@ for (i in condition){
 # Adding all the other factor variables manually. # AD: moved caradphotos to integers
 fac_list <- c(fac_list,'inspection','relistflag','featured','phone','addedinfo',
               'endsunday','primetime','warranty','relist','sell','dealer',
-              'maker','interior','exterior','software', 'address')  # AD : removed location and added to character.
+              'maker','interior','exterior','software', 'address', 'year')  # AD : removed location and added to character.
 
 # Convert all the variables in the 'fac_list' to a factor type
 orig_data <- orig_data %>% mutate_at(.vars = fac_list, .funs = as.factor)
@@ -89,9 +89,9 @@ for (i in time){
   int_list <- append(int_list,vec)
 }
 
-int_list <- c(int_list,'year','endhour','endingdate','startingdate','endday','text',
+int_list <- c(int_list,'endhour','endingdate','startingdate','endday','text',
               'miles','numbids','store','pwrseller','highbidderfdback',
-              'reserve','buyitnow','sellfdbackpct','photos','descriptionsize','options','doors',  # AD: removed address and added to factor
+              'reserve','buyitnow','sellfdbackpct','photos','descriptionsize','options','doors',  # AD: removed address and year and added to factor
               'trans','webpage','title','condition','model','cyl','length','age','age2','html',
               'sellerborn','week','auction','n','totallisted','totalsold','caradphotos') 
 
@@ -169,7 +169,6 @@ sort(table(orig_data$model))
 # So we subset the dataset by Ford (some car within ford that is converted to a factor and unable to read)
 
 df2 <- orig_data[orig_data$model == "39", ]
-glimpse(df2)
 
 100*nrow(df2)/nrow(orig_data)
 # We get 30k observations, which is about 20% of the data
@@ -178,13 +177,8 @@ glimpse(df2)
 # ------------------------
 # Running a RF model
 # ------------------------
-# source
-head(df2)
-str(df2)
-
 # Lets remove the raw variables, and play with only the ones derived by the author
 
-# ---------
 raw <- c("ding_barely", "ding_minute", "ding_negligible", "ding_small", "ding_limited", "ding_almost", "ding_minor", "ding_little", "ding_invisible",
          "ding_wide", "ding_enormous", "ding_noticeable", "ding_large", "ding_obvious", "ding_major", "ding_substantial", "ding_visible", "ding_huge", "ding_medium", "ding_big", "ding_significant", "ding_sizable", "ding_vast",
          "ding_apparent", "ding_known", "ding_no", "ding_free", "ding_never", "ding_nothing", "ding_seldom", "ding_one", "ding_rarely", "ding_only", "ding_hardly", "ding_couple",
@@ -216,22 +210,69 @@ raw <- c("ding_barely", "ding_minute", "ding_negligible", "ding_small", "ding_li
          "broken_high", "dent", "dent_negation", "dent_good", "dent_low", "dent_high", "dent_bad", "problem", "problem_negation", "problem_good", "problem_low",
          "problem_high", "rust", "rust_negation", "rust_good", "rust_low", "rust_high", "rust_bad")
 
-# --------
 df3 <- df2[ , !(names(df2) %in% raw)]
-
 colnames(df3)
 
-dfx <- df3[1:1000,unique(c("sell", colnames(df3[,6:30])))]
-colnames(dfx)
+# Now, we will choose only the variables that can be pre-determined before the car is sold or listed on the auction
 
+features <- c("maker", "text", "interior", "exterior", "inspection", "miles", "phone", "address", "store", "buyitnow", "photos",
+              "addedinfo", "descriptionsize", "ding_two", "ding_tiny", "ding_detectable", "ding_few", "scratch_two", "scratch_tiny", 
+              "scratch_detectable", "scratch_few", "dent_small", "dent_visible", "dent_two", "dent_tiny", "dent_detectable", 
+              "dent_few", "broken_two", "broken_tiny", "broken_detectable", "broken_few", "crack_wide", "crack_large", "crack_negligible", 
+              "crack_two", "crack_tiny", "crack_detectable", "crack_few", "crack_medium", "problem_one", "problem_two", "problem_tiny",
+              "problem_detectable", "problem_few", "rust_two", "rust_tiny", "rust_detectable", "rust_few", "doors", "trans", "webpage",
+              "condition", "model", "cyl", "warranty", "age", "age2", "logmiles", "logtext","software", "caradphotos", "totallisted",
+              "dealer", "ding_bad", "ding_knowledge", "ding_pics", "dent_knowledge", "dent_pics", "crack_knowledge", 
+              "crack_pics", "problem_bad", "problem_knowledge", "problem_pics", "rust_knowledge", "rust_pics", "scratch_knowledge", 
+              "scratch_pics", "broken_bad", "broken_knowledge", "broken_pics", "ding_group", "scratch_group", "crack_group", "broken_group", 
+              "dent_group", "problem_group", "rust_group", "negpct", "startdate_year","startdate_month", "startdate_day", "startdate_hour", 
+              "startdate_minute", "startdate_second", "startdate_wday")
+
+doubtful <- c("featured", "pwrseller", "highbidderfdback", "reserve", "sellfdbackpct", "options", "pctfdback", "title", 
+              "logsize", "logstart", "logfdback", "logphotos", "html", "loghtml", "sellerborn", "sellerage", "logage" )
+
+# Set details of the dataset
+set.seed(100)
+rows <- 1000
+
+dfx <- df3[sample(nrow(df3), rows), unique(c("sell", features))]
+colnames(dfx)
 
 #Imputing data
 dfx.impute <- rfImpute(sell ~ ., data = dfx, iter = 6)
 
 # Vector memory reached. Not functioning
-model <- randomForest(sell ~ ., data = dfx.impute, proximity = TRUE)
+model <- randomForest(sell ~ ., data = dfx.impute, proximity = TRUE, ntree = 500)
 model
 
+# Finding optimal number of trees
+oob.error.rate <- data.frame(
+  Trees = rep(1:nrow(model$err.rate), times = 3),
+  Type = rep(c("OOB", "Unsold", "Sold"), each = nrow(model$err.rate)),
+  Error = c(model$err.rate[, "OOB"],
+            model$err.rate[, "0"],
+            model$err.rate[, "1"]))
+
+oob.error.rate
+
+ggplot(data = oob.error.rate, aes(x = Trees, y = Error)) +
+  geom_line(aes(color=Type))
+
+# Finding optimal number of variables at each internal node
+
+oob.values <- vector(length = 20)
+for(i in 1:length(oob.values)){
+  temp.model <- randomForest(sell ~ ., data = dfx.impute, mtry = i, ntree = 500)
+  oob.values[i] <- temp.model$err.rate[nrow(temp.model$err.rate), 1]
+}
+
+which.min(oob.values)
+
+# Plot the proximity matrix
+model$terms
+plot(model)
+varImpPlot(model)
+dfx.impute$totalsold
 
 # ---------------------------------
 # Running regressions
