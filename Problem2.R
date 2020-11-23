@@ -40,6 +40,14 @@ for (i in time){
 }
 predictors <- predictors[!predictors %in% time_list]  # remove bid time variables
 
+condition <- c("^ding*","^scratch*","^dent*","^broken*","^crack*","^problem*","^rust*")  #list all condition relevant vars
+cond_list <- c()
+for (i in condition){
+  vec <- colnames(orig_data)[grepl(i,colnames(orig_data))]
+  cond_list <- append(cond_list,vec)
+}
+predictors <- predictors[!predictors %in% cond_list]
+
 useless_list <- c('enddate','startdate',
                   'start_m','end_m','start_s','end_s','peak_s','season_trans')
 one_level <- c('ding_enormous','ding_seldom','ding_negligible','ding_detectable','ding_sizable','ding_vast',
@@ -47,17 +55,19 @@ one_level <- c('ding_enormous','ding_seldom','ding_negligible','ding_detectable'
 predictors <- predictors[!predictors %in% useless_list]  # remove other useless variables
 predictors <- predictors[!predictors %in% one_level]
 predictors <- c(predictors,'winningbid')
+nndata <- subset(biddy, select=predictors) 
 
-
-nndata$maker <- factor(nndata$maker,level=unique(biddy$maker),labels=1:length(unique(biddy$maker)),exclude = NULL)
-nndata$interior <- factor(nndata$interior,level=unique(biddy$interior),labels=1:length(unique(biddy$interior)),exclude = NULL)
-nndata$location <- factor(nndata$location,level=unique(biddy$location),labels=1:length(unique(biddy$location)),exclude = NULL)
-nndata$software <- factor(nndata$software,level=unique(biddy$software),labels=1:length(unique(biddy$software)),exclude = NULL)
-nndata$caradphotos <- factor(nndata$caradphotos,level=c(unique(biddy$caradphotos),''),labels=c(unique(biddy$caradphotos),NA),exclude = NULL)
+nndata$maker <- factor(nndata$maker,level=unique(nndata$maker),labels=1:length(unique(nndata$maker)),exclude = NULL)
+nndata$interior <- factor(nndata$interior,level=unique(nndata$interior),labels=1:length(unique(nndata$interior)),exclude = NULL)
+nndata$exterior <- factor(nndata$exterior,level=unique(nndata$exterior),labels=1:length(unique(nndata$exterior)),exclude = NULL)
+nndata$location <- factor(nndata$location,level=unique(nndata$location),labels=1:length(unique(nndata$location)),exclude = NULL)
+nndata$software <- factor(nndata$software,level=unique(nndata$software),labels=1:length(unique(nndata$software)),exclude = NULL)
+nndata$caradphotos <- factor(nndata$caradphotos,level=unique(nndata$caradphotos),labels=1:length(unique(nndata$caradphotos)),exclude = NULL)
 # The nndata is a full data set including potentially useful predictors
+#nndata <- nndata %>% drop_na()
 
 
-nndata <- subset(nndata, select=predictors) %>% drop_na()
+
 
 # \Set test and train data set
 n <- dim(nndata[1])
@@ -74,6 +84,7 @@ test.x <- lapply(test[names(test)!='winningbid'],
                  function(x) if(is.numeric(x)){
                    scale(x, center=TRUE, scale=TRUE)
                  } else x)
+
 # Fitting ANN to the Training set
 # install.packages('h2o')
 library(h2o)
@@ -82,9 +93,8 @@ classifier = h2o.deeplearning(y = 'winningbid',
                               training_frame = as.h2o(train),
                               validation_frame = as.h2o(test),
                               activation = 'Rectifier',
-                              hidden = c(64, 32, 16),
-                              epochs = 100,
-                              train_samples_per_iteration = -2)
+                              hidden = c(32,16),
+                              epochs = 10)
 # This runs really slow
 
 
@@ -93,3 +103,4 @@ classifier = h2o.deeplearning(y = 'winningbid',
 
 
 
+``
