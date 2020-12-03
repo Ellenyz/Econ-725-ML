@@ -42,6 +42,10 @@ predictors <- predictors[!predictors %in% time_list]  # remove bid time variable
 
 condition <- c("^ding*","^scratch*","^dent*","^broken*","^crack*","^problem*","^rust*")  #list all condition relevant vars
 cond_list <- c()
+
+## Many of these terms are 1, maybe I should replace them by an aggregate condition score
+
+
 for (i in condition){
   vec <- colnames(orig_data)[grepl(i,colnames(orig_data))]
   cond_list <- append(cond_list,vec)
@@ -65,7 +69,7 @@ nndata$software <- factor(nndata$software,level=unique(nndata$software),labels=1
 nndata$caradphotos <- factor(nndata$caradphotos,level=unique(nndata$caradphotos),labels=1:length(unique(nndata$caradphotos)),exclude = NULL)
 # The nndata is a full data set including potentially useful predictors
 #nndata <- nndata %>% drop_na()
-
+## After dropping unnecessary factors, 74 alternative predictors remain
 
 
 
@@ -76,11 +80,11 @@ train.id <- sample.int(n, floor(n/2), replace = F)
 
 train <- nndata[train.id,]
 test <- nndata[-train.id,]
-train.x <- lapply(train[names(train)!='winningbid'],
+train.x <- lapply(train[names(train)!='biddy1'],
                   function(x) if(is.numeric(x)){
                     scale(x, center=TRUE, scale=TRUE)
                     } else x)
-test.x <- lapply(test[names(test)!='winningbid'],
+test.x <- lapply(test[names(test)!='biddy1'],
                  function(x) if(is.numeric(x)){
                    scale(x, center=TRUE, scale=TRUE)
                  } else x)
@@ -95,12 +99,8 @@ classifier = h2o.deeplearning(y = 'winningbid',
                               activation = 'Rectifier',
                               hidden = c(32,16),
                               epochs = 10)
-# This runs really slow
+
+nn_mse <- h2o.mse(classifier)
 
 
 
-
-
-
-
-``
