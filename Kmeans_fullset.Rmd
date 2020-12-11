@@ -1,0 +1,453 @@
+---
+title: "Kmeans"
+author: "Yuzhou Wang"
+date: "12/6/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F,tidy.opts=list(width.cutoff=60),tidy=T) # allow text wrapping
+knitr::opts_chunk$set(cache.path = "cache/") # creates a directory to save data to
+```
+## K-Means Attempt
+This part has been eliminate from our project because RF is more efficient to solve the problems.
+``````{r nn, echo=T, cache=T}
+suppressMessages(library(tidyverse))
+suppressMessages(library(data.table))
+#pkgs <- c("factoextra",  "NbClust")
+#install.packages(pkgs)
+suppressMessages(library(factoextra))
+suppressMessages(library(NbClust))
+
+#Load Data
+nndata <- data.frame(readRDS("../files for project/cleaned_data"))
+#summary(nndata$model)
+```
+
+```{r nn1, echo=T, cache=T,dependson= c("nn")}
+#Construct Seasonal Variables
+nndata$start_s <- ifelse(nndata$startdate_month %in% c(12,1,2), "Winter", 
+                            ifelse(nndata$startdate_month%in%c(3,4,5), "Spring", 
+                                   ifelse(nndata$startdate_month%in%c(6,7,8), "Summer",
+                                          ifelse(nndata$startdate_month%in%c(9,10,11), "Fall", 
+                                                 NA))))
+
+nndata$end_s <- ifelse(nndata$startdate_month %in% c(12,1,2), "Winter", 
+                            ifelse(nndata$startdate_month%in%c(3,4,5), "Spring", 
+                                   ifelse(nndata$startdate_month%in%c(6,7,8), "Summer",
+                                          ifelse(nndata$startdate_month%in%c(9,10,11), "Fall", 
+                                                 NA))))
+
+```
+
+```{r nn2, echo=T, cache=T,dependson= c("nn1"),collapse=TRUE}
+# Categorize Variables
+car_description <- c("maker","interior", "exterior","miles", "inspection", "doors", "trans", "model", "cyl", "warranty", "age", "age2")
+listing_features <- c("text","phone", "address","store", "buyitnow", "photos","addedinfo", "descriptionsize","webpage",
+                      "caradphotos", "totallisted", "title","html","featured", "reserve", "auction", "primetime", "relist")
+auction_time <- c("startdate_year","startdate_month", "startdate_day", "startdate_hour", 
+                  "startdate_minute", "startdate_second", "startdate_wday",
+                  "enddate_year", "enddate_month", "enddate_day","enddate_hour",
+                  "enddate_minute", "enddate_second", "enddate_wday", "length", "week")
+yz_customized_time <- c("startdate_year","enddate_year","startdate_wday","enddate_wday","length", "week")
+auction_season <- c('start_s','end_s')
+car_quality <- c("ding_two", "ding_tiny", "ding_detectable", "ding_few", "scratch_two", "scratch_tiny", 
+                 "scratch_detectable", "scratch_few", "dent_small", "dent_visible", "dent_two", "dent_tiny", "dent_detectable", 
+                 "dent_few", "broken_two", "broken_tiny", "broken_detectable", "broken_few", "crack_wide", "crack_large", "crack_negligible", 
+                 "crack_two", "crack_tiny", "crack_detectable", "crack_few", "crack_medium", "problem_one", "problem_two", "problem_tiny",
+                 "problem_detectable", "problem_few", "rust_two", "rust_tiny", "rust_detectable", "rust_few","ding_bad", "ding_knowledge", "ding_pics", "dent_knowledge", "dent_pics", "crack_knowledge", 
+                 "crack_pics", "problem_bad", "problem_knowledge", "problem_pics", "rust_knowledge", "rust_pics", "scratch_knowledge", 
+                 "scratch_pics", "broken_bad", "broken_knowledge", "broken_pics", "ding_group", "scratch_group", "crack_group", "broken_group", 
+                 "dent_group", "problem_group", "rust_group","condition")
+log_variables <- c("logmiles", "logtext","logsize", "logstart", "logfdback", "logphotos","logage","loghtml")
+seller_features <- c("software","dealer",  "negpct","sellerborn", "sellerage","pwrseller")
+other <- c("numbids")
+
+# Tweak this section for the variables that you want included:
+types <- data.frame(vars = c("car_description", 
+                             "listing_features",
+                             "auction_time", 
+                             'yz_customized_time',
+                             'auction_season',
+                             "car_quality", 
+                             "log_variables", 
+                             "seller_features",
+                             'other'))
+
+vars <- NULL
+temp <- NULL
+for(i in 1:nrow(types)){
+  temp <- data.frame(variable = eval(parse(text = types$vars[i])),
+                     category = types$vars[i])
+  
+  vars <- data.frame(rbind(vars, temp))
+}
+vars
+
+km.data <- nndata[,unique(c("sell",'biddy1',vars$variable[which(vars$category%in%c("car_description", 
+                                                                      "listing_features",
+                                                                      'yz_customized_time',
+                                                                      'auction_season',
+                                                                      "car_quality", 
+                                                                      "seller_features",
+                                                                      'other'))]))]
+km.data$maker <- factor(km.data$maker,level=unique(km.data$maker),labels=1:length(unique(km.data$maker)),exclude = NULL)
+km.data$model<- factor(km.data$model,level=unique(km.data$model),labels=1:length(unique(km.data$model)),exclude = NULL)
+km.data$interior <- factor(km.data$interior,level=unique(km.data$interior),labels=1:length(unique(km.data$interior)),exclude = NULL)
+km.data$exterior <- factor(km.data$exterior,level=unique(km.data$exterior),labels=1:length(unique(km.data$exterior)),exclude = NULL)
+#km.data$location <- factor(km.data$location,level=unique(km.data$location),labels=1:length(unique(km.data$location)),exclude = NULL)
+km.data$software <- factor(km.data$software,level=unique(km.data$software),labels=1:length(unique(km.data$software)),exclude = NULL)
+km.data$caradphotos <- factor(km.data$caradphotos,level=unique(km.data$caradphotos),labels=1:length(unique(km.data$caradphotos)),exclude = NULL)
+km.data$start_s <- factor(km.data$start_s,level=unique(km.data$start_s),labels=1:length(unique(km.data$start_s)),exclude = NULL)
+km.data$end_s <- factor(km.data$end_s,level=unique(km.data$end_s),labels=1:length(unique(km.data$end_s)),exclude = NULL)
+km.data$startdate_year <- factor(km.data$startdate_year ,level=unique(km.data$startdate_year ),labels=1:length(unique(km.data$startdate_year )),exclude = NULL)
+km.data$enddate_year <- factor(km.data$enddate_year ,level=unique(km.data$enddate_year ),labels=1:length(unique(km.data$enddate_year )),exclude = NULL)
+km.data$reserve <- factor(km.data$reserve)
+km.data$buyitnow <- factor(km.data$buyitnow)
+km.data$store <- factor(km.data$store)
+#km.data <- data.frame(sapply(km.data,as.numeric))
+km.data <- na.omit(km.data)
+
+x <- km.data[,which(!names(km.data) %in% c('sell','biddy1'))]
+
+factor <- lapply(km.data,is.factor)
+km.num.data <- data.frame(lapply(km.data,as.numeric)) %>% drop_na()
+km.num.data[,which(factor==1)] <- km.num.data[,which(factor==1)]-1 
+## minus one because as.numeric indexing from 1 instead of 0
+
+##
+rangeStandardize <- function(x) {
+  (x - min(x)) / diff(range(x))
+}
+x <- x %>% mutate_if(is.numeric,rangeStandardize)
+
+x <- data.frame(lapply(x,as.numeric))
+
+wcss = vector()
+for (i in 1:6) wcss[i] = sum(kmeans(x, i)$withinss,na.rm=TRUE)
+plot(1:6,
+     wcss,
+     type = 'b',
+     main = paste('The Elbow Method'),
+     xlab = 'Number of cluster',
+     ylab = 'WCSS')
+#fviz_nbclust(x, kmeans, method = "wss")
+
+#fviz_nbclust(x, kmeans, method = "wss") +
+#    geom_vline(xintercept = 4, linetype = 2)+
+#  labs(subtitle = "Elbow method")
+
+```
+
+```{r nn3, echo=T, cache=T,dependson= c("nn2")}
+# Visualize k-means
+#km = kmeans(x, 2, iter.max =300, nstart =200)
+#y_kmeans = km$cluster
+
+#km.num.data$cluster <- y_kmeans
+
+#sum <- km.num.data %>% group_by(cluster) %>% summarise_all(.vars=c(),mean,na.omit=TRUE)
+#data.frame(sum)
+
+#km.num.data %>%
+#  mutate(cluster = km$cluster) %>%
+#  ggplot(aes(numbids, sell, color = factor(cluster), label = cluster)) +
+#  geom_text()
+
+
+#km.num.data %>% select(cluster, miles, inspection, warranty, age, sell) %>% 
+#  group_by(cluster) %>% summarise_all(.vars=c(),mean,na.omit=TRUE)
+
+
+
+#km.num.data[c(listing_features,'sell','cluster')] %>% 
+#  group_by(cluster) %>% summarise_all(.vars=c(),mean,na.omit=TRUE)
+
+```
+
+## Neural Network
+### First we fit models for 'sell' (==1 for sold, ==0 for unsold)
+```{r nn4, echo=T, cache=T,warning=FALSE}
+#n <- dim(km.num.data[1])
+#set.seed(0)
+#train.id <- sample.int(n, floor(0.6*n), replace = F)
+#km.num.data <- km.num.data[,which(!names(km.num.data) %in% c('biddy1'))]
+#train <- km.num.data[train.id,]
+#test <- km.num.data[-train.id,]
+#train.x <- data.frame(lapply(train[names(train)!='sell'],
+#                  function(x) if(is.numeric(x)){
+#                    scale(x, center=TRUE, scale=TRUE)
+#                  } else x))
+#test.x <- data.frame(lapply(test[names(test)!='sell'],
+#                 function(x) if(is.numeric(x)){
+#                   scale(x, center=TRUE, scale=TRUE)
+#                 } else x))
+
+# Fitting ANN to the Training set
+# install.packages('h2o')
+library(h2o)
+h2o.init(nthreads = -1)
+km.num.data$start_s <- factor(km.num.data$start_s)
+exclude <- c('end_s','software','age2','biddy1','sellerborn','doors','week','maker','dealer')
+km.num.data <- km.num.data[,which(!names(km.num.data)%in%exclude)]
+splits <- h2o.splitFrame(as.h2o(km.num.data), c(0.6,0.2), seed=1234)
+train  <- h2o.assign(splits[[1]], "train.hex") # 60%
+valid  <- h2o.assign(splits[[2]], "valid.hex") # 20%
+test   <- h2o.assign(splits[[3]], "test.hex")  # 20%
+classifier = h2o.deeplearning(y = 'sell',
+                              training_frame = train,
+                              validation_frame = valid,
+                              activation = 'Rectifier',
+                              hidden = c(64,32,16),
+                              epochs = 100,
+                              variable_importances=T )
+#summary(classifier)
+out <- head(as.data.frame(h2o.varimp(classifier)),20)
+out[,2:4] <- round(out[,2:4] ,4)
+
+out2 <- as.data.frame(h2o.varimp(classifier))
+out2 <- out2[which(!out2$variable%in%car_quality),]
+out2[,2:4] <- round(out2[,2:4], 4)
+out2 <- head(out2,20)
+
+nn_mse_643216 <- h2o.mse(classifier)
+
+prob_pred = h2o.predict(classifier, newdata = as.h2o(test))
+y_pred = (prob_pred > 0.5)
+y_pred = as.vector(y_pred)
+#y_pred
+#summary(y_pred)
+
+check <- ifelse(y_pred==test$sell,1,0)
+mean(check)
+```
+
+### repeat nn4 and try for other type of layers
+```{r nn5, echo=T, cache=T,dependson= c("nn4"),warning=FALSE}
+classifier = h2o.deeplearning(y = 'sell',
+                              training_frame = train,
+                              validation_frame = valid,
+                              activation = 'Rectifier',
+                              hidden = c(32,32,32),
+                              epochs = 10,
+                              variable_importances=T )
+
+out2 <- as.data.frame(h2o.varimp(classifier))
+out2 <- out2[which(!out2$variable%in%car_quality),]
+out2[,2:4] <- round(out2[,2:4], 4)
+out2 <- head(out2,20)
+
+nn_mse_323232 <- h2o.mse(classifier)
+
+
+classifier = h2o.deeplearning(y = 'sell',
+                              training_frame = train,
+                              validation_frame = valid,
+                              activation = 'Rectifier',
+                              hidden = c(100),
+                              epochs = 10,
+                              variable_importances=T )
+
+out2 <- as.data.frame(h2o.varimp(classifier))
+out2 <- out2[which(!out2$variable%in%car_quality),]
+out2[,2:4] <- round(out2[,2:4], 4)
+out2 <- head(out2,20)
+nn_mse_100 <- h2o.mse(classifier)
+
+
+classifier = h2o.deeplearning(y = 'sell',
+                              training_frame = train,
+                              validation_frame = valid,
+                              activation = 'Rectifier',
+                              hidden = c(100,50),
+                              epochs = 10,
+                              variable_importances=T )
+
+out2 <- as.data.frame(h2o.varimp(classifier))
+out2 <- out2[which(!out2$variable%in%car_quality),]
+out2[,2:4] <- round(out2[,2:4], 4)
+out2 <- head(out2,20)
+nn_mse_10050 <- h2o.mse(classifier)
+```
+
+### Now selecting only variables being selected by the RF Model
+```{r nn6, echo=T, cache=T,dependson= c("nn5"),warning=FALSE,collapse=TRUE}
+var <- c("reserve","caradphotos","logstart","buyitnow","exterior","software","age","photos","interior",
+         "logmiles","age2","enddate_wday","startdate_wday","logfdback","miles","logage","logsize",
+         "logphotos","html","loghtml") 
+nndata <- data.frame(readRDS("../files for project/cleaned_data"))
+#nndata$sold <- 0
+#nndata$sold[which(nndata$numbids > 0)] <- 1
+nndata <- nndata[c(var,'sell')]
+
+#nndata$maker <- factor(nndata$maker,level=unique(nndata$maker),labels=1:length(unique(nndata$maker)),exclude = NULL)
+#nndata$model<- factor(nndata$model,level=unique(nndata$model),labels=1:length(unique(nndata$model)),exclude = NULL)
+nndata$interior <- factor(nndata$interior,level=unique(nndata$interior),labels=1:length(unique(nndata$interior)),exclude = NULL)
+nndata$exterior <- factor(nndata$exterior,level=unique(nndata$exterior),labels=1:length(unique(nndata$exterior)),exclude = NULL)
+#nndata$location <- factor(nndata$location,level=unique(nndata$location),labels=1:length(unique(nndata$location)),exclude = NULL)
+nndata$software <- factor(nndata$software,level=unique(nndata$software),labels=1:length(unique(nndata$software)),exclude = NULL)
+#nndata <- nndata[which(nndata$software!=1 & nndata$software!=2),]
+
+nndata <- data.frame(lapply(nndata,as.numeric))
+nndata <- na.omit(nndata)
+
+
+# \Set test and train data set
+#n <- dim(nndata[1])
+#set.seed(0)
+#train.id <- sample.int(n, floor(0.8*n), replace = F)
+
+#train <- nndata[train.id,]
+#test <- nndata[-train.id,]
+#train.x <- data.frame(lapply(train[names(train)!='sold'],
+#                  function(x) if(is.numeric(x)){
+#                    scale(x, center=TRUE, scale=TRUE)
+#                  } else x))
+#test.x <- data.frame(lapply(test[names(test)!='sold'],
+#                 function(x) if(is.numeric(x)){
+#                   scale(x, center=TRUE, scale=TRUE)
+#                 } else x))
+
+# Fitting ANN to the Training set
+# install.packages('h2o')
+library(h2o)
+h2o.init(nthreads = -1)
+splits <- h2o.splitFrame(as.h2o(nndata), c(0.6,0.2), seed=1234)
+train  <- h2o.assign(splits[[1]], "train.hex") # 60%
+valid  <- h2o.assign(splits[[2]], "valid.hex") # 20%
+test   <- h2o.assign(splits[[3]], "test.hex")  # 20%
+classifier2 = h2o.deeplearning(y = 'sell',
+                              training_frame = train,
+                              validation_frame = valid,
+                              activation = 'Rectifier',
+                              hidden = c(64,32,16),
+                              epochs = 100,
+                              variable_importances=T)
+
+summary(classifier2)
+head(as.data.frame(h2o.varimp(classifier2)))
+
+prob_pred = h2o.predict(classifier, newdata = test)
+y_pred = (prob_pred > 0.5)
+y_pred = as.vector(y_pred)
+#y_pred
+#summary(y_pred)
+
+#data.frame(nn_mse_100,nn_mse_10050,nn_mse_323232,nn_mse_643216)
+```
+## K-means for Subsets
+```{r nn7, echo=T, cache=T,dependson= c("nn6"),collapse=TRUE}
+
+#data1 <- subset(km.data,select = c(listing_features,'sell','biddy1'))
+#rangeStandardize <- function(x) {
+#  (x - min(x)) / diff(range(x))
+#}
+#x <- subset(data1,select = listing_features) %>% mutate_if(is.numeric,rangeStandardize)
+
+#factor <- lapply(data1,is.factor)
+#data1 <- data.frame(lapply(data1,as.numeric)) %>% drop_na()
+#data1[,which(factor==1)] <- data1[,which(factor==1)]-1 ## minus one because as.numeric indexing from 1 instead of 0
+
+#wcss = vector()
+#for (i in 1:6) wcss[i] = sum(kmeans(x, i)$withinss,na.rm=TRUE)
+#plot(1:6,
+#     wcss,
+#     type = 'b',
+#     main = paste('The Elbow Method'),
+#     xlab = 'Number of cluster',
+#     ylab = 'WCSS')
+
+# Visualize k-means
+#km2 = kmeans(x, 2, iter.max =300, nstart =200)
+#y_kmeans2 = km2$cluster
+#data1$cluster <- y_kmeans2
+#data1 %>% group_by(cluster) %>% summarise_all(.vars=c(),mean,na.omit=TRUE)
+
+```
+
+
+### Implement NN for prediction on bid
+Remove some variabnle not making sense like the end season, the seller born
+```{r nn8, echo=T, cache=T, dependson= c("nn7"),warning=FALSE,collapse=TRUE}
+factor <- lapply(km.data,is.factor)
+nndata2  <- data.frame(lapply(km.data,as.numeric)) %>% drop_na()
+nndata2[,which(factor==1)] <- nndata2 [,which(factor==1)]-1 ## minus one because as.numeric indexing from 1 instead of 0
+nndata2 <- nndata2[which(nndata2$sell==1),]
+##
+rangeStandardize <- function(x) {
+  (x - min(x)) / diff(range(x))
+}
+nndata2[,which(!names(nndata2)=='biddy1')] <- nndata2[,which(!names(nndata2)=='biddy1')] %>% mutate_if(is.numeric,rangeStandardize)
+nndata2 <- data.frame(lapply(nndata2,as.numeric))
+
+library(h2o)
+h2o.init(nthreads = -1)
+nndata2$start_s <- factor(nndata2$start_s)
+exclude <- c('end_s','software','age2','sell','sellerborn','doors','dealer','week')
+nndata2<- nndata2[,which(!names(nndata2)%in%exclude)]
+nndata2$biddy1 <- log(nndata2$biddy1)
+splits <- h2o.splitFrame(as.h2o(nndata2), c(0.6,0.2), seed=1234)
+train  <- h2o.assign(splits[[1]], "train.hex") # 60%
+valid  <- h2o.assign(splits[[2]], "valid.hex") # 20%
+test   <- h2o.assign(splits[[3]], "test.hex")  # 20%
+classifier = h2o.deeplearning(y = 'biddy1',
+                              training_frame = train,
+                              validation_frame = valid,
+                              activation = 'Rectifier',
+                              hidden = c(64,32,16),
+                              epochs = 100,
+                              variable_importances=T,
+                              export_weights_and_biases=T)
+summary(classifier)
+
+out3 <- as.data.frame(h2o.varimp(classifier))
+out3 <- out2[which(!out2$variable%in%car_quality),]
+out3[,2:4] <- round(out2[,2:4], 4)
+out3 <- head(out2,20)
+
+nn_mse_bid <- h2o.mse(classifier)
+
+#w1 <- as.data.frame(h2o.weights(classifier, matrix_id=1))
+#w2 <- as.data.frame(h2o.weights(classifier, matrix_id=2))
+#w3 <- as.data.frame(h2o.weights(classifier, matrix_id=3))
+#w4 <- as.data.frame(h2o.weights(classifier, matrix_id=4))
+```
+
+```{r nn9, echo=T, cache=T,dependson= c("nn8"),warning=FALSE}
+classifier = h2o.deeplearning(y = 'biddy1',
+                              training_frame = train,
+                              validation_frame = valid,
+                              activation = 'Rectifier',
+                              hidden = c(100),
+                              epochs = 100,
+                              variable_importances=T,
+                              export_weights_and_biases=T)
+#summary(classifier)
+
+nn_mse_bid100 <- h2o.mse(classifier)
+
+classifier = h2o.deeplearning(y = 'biddy1',
+                              training_frame = train,
+                              validation_frame = valid,
+                              activation = 'Rectifier',
+                              hidden = c(100,50),
+                              epochs = 100,
+                              variable_importances=T,
+                              export_weights_and_biases=T)
+
+nn_mse_bid10050 <- h2o.mse(classifier)
+
+classifier = h2o.deeplearning(y = 'biddy1',
+                              training_frame = train,
+                              validation_frame = valid,
+                              activation = 'Rectifier',
+                              hidden = c(32,32,32),
+                              epochs = 100,
+                              variable_importances=T,
+                              export_weights_and_biases=T)
+
+nn_mse_bid_323232 <- h2o.mse(classifier)
+data.frame(nn_mse_bid100,nn_mse_bid10050,nn_mse_bid_323232,nn_mse_bid)
+```
+
+
